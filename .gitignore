@@ -30,4 +30,6 @@ bun.lockb
 # Temp/test output
 tmp/
 test-results/
-playwright-report/
+playwright-report/bun.lock
+package-lock.json
+convex/_generated/
