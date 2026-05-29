@@ -3,12 +3,13 @@ import { SurgeUser } from '../types';
 import { useMessages } from '../hooks/useMessages';
 import { useAuth } from '../contexts/AuthContext';
 import { Avatar } from '../components/ui/SurgeAvatar';
-import { ArrowLeft, Send, Smile, MoreVertical, Flag, Ban } from 'lucide-react';
+import { ArrowLeft, Send, Smile, MoreVertical, Flag, Ban, Paperclip, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { IcebreakerPrompt } from '../components/IcebreakerPrompt';
+import { useMediaUpload } from '../hooks/useMediaUpload';
 import clsx from 'clsx';
 
 interface Props {
@@ -42,6 +43,9 @@ export function ChatPage({ otherUser, conversationId, onBack }: Props) {
   const [showEmoji, setShowEmoji] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const mediaInputRef = useRef<HTMLInputElement>(null);
+  const { upload: uploadMedia, uploading: mediaUploading, progress: mediaProgress } = useMediaUpload();
+  const sendMediaMessage = useMutation(api.surgeMedia.sendMediaMessage);
   const createReport = useMutation(api.surgeReports.create);
 
   useEffect(() => {
@@ -63,6 +67,31 @@ export function ChatPage({ otherUser, conversationId, onBack }: Props) {
     } finally {
       setSending(false);
     }
+  };
+
+  const handleMediaSend = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !profile?.id) return;
+    try {
+      const isImage = file.type.startsWith('image/');
+      const isVideo = file.type.startsWith('video/');
+      if (!isImage && !isVideo) { toast.error('Only photos and videos allowed'); return; }
+      const result = await uploadMedia(file, profile.id, { isProfilePhoto: false });
+      if (result) {
+        // Use the storage-based media message
+        await sendMediaMessage({
+          conversation_id: conversationId,
+          sender_id: profile.id,
+          receiver_id: otherUser.id,
+          storage_id: result.mediaId as any,
+          media_type: isImage ? 'image' : 'video',
+        });
+        toast.success(`${isImage ? 'Photo' : 'Video'} sent!`);
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send media');
+    }
+    if (mediaInputRef.current) mediaInputRef.current.value = '';
   };
 
   const handleBlock = async () => {
@@ -182,7 +211,25 @@ export function ChatPage({ otherUser, conversationId, onBack }: Props) {
       )}
 
       {/* Input */}
+      {/* Hidden file input for media */}
+      <input ref={mediaInputRef} type="file" accept="image/*,video/*" onChange={handleMediaSend} className="hidden" />
+
+      {/* Media upload progress */}
+      {mediaUploading && (
+        <div className="px-4 py-2 bg-purple-900/30 border-t border-purple-700/30 flex items-center gap-2 text-sm text-purple-300">
+          <Loader2 size={14} className="animate-spin" />
+          Uploading... {mediaProgress}%
+        </div>
+      )}
+
       <div className="flex items-center gap-2 px-4 py-3 border-t border-white/10 flex-shrink-0 bg-gray-950/80 backdrop-blur-md">
+        <button
+          onClick={() => mediaInputRef.current?.click()}
+          disabled={mediaUploading}
+          className="text-gray-500 hover:text-purple-400 transition-colors disabled:opacity-40"
+        >
+          <Paperclip size={22} />
+        </button>
         <button onClick={() => setShowEmoji(p => !p)} className={clsx('text-gray-500 hover:text-purple-400 transition-colors', showEmoji && 'text-purple-400')}>
           <Smile size={22} />
         </button>

@@ -124,6 +124,34 @@ const schema = defineSchema({
   })
     .index("by_spot", ["spot_id"]),
 
+  surge_media: defineTable({
+    user_id: v.string(),
+    storage_id: v.id("_storage"),
+    url: v.string(),
+    type: v.string(), // "image" | "video"
+    filename: v.optional(v.string()),
+    size: v.optional(v.number()),
+    is_profile_photo: v.boolean(),
+    album_id: v.optional(v.id("surge_albums")),
+    sort_order: v.number(),
+    created_at: v.string(),
+  })
+    .index("by_user", ["user_id", "created_at"])
+    .index("by_album", ["album_id", "sort_order"])
+    .index("by_user_profile", ["user_id", "is_profile_photo"]),
+
+  surge_albums: defineTable({
+    user_id: v.string(),
+    name: v.string(),
+    description: v.optional(v.string()),
+    cover_storage_id: v.optional(v.id("_storage")),
+    photo_count: v.number(),
+    video_count: v.number(),
+    is_private: v.boolean(),
+    created_at: v.string(),
+  })
+    .index("by_user", ["user_id", "created_at"]),
+
   surge_referral_codes: defineTable({
     user_id: v.string(),
     code: v.string(),

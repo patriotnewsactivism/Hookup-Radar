@@ -3,11 +3,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { Avatar } from '../components/ui/SurgeAvatar';
 import { Badge } from '../components/ui/SurgeBadge';
 import { GENDERS, ORIENTATIONS, POSITIONS, LOOKING_FOR, KINKS } from '../types';
-import { Eye, Crown, LogOut, Shield, Zap, EyeOff } from 'lucide-react';
+import { Eye, Crown, LogOut, Shield, Zap, EyeOff, Camera } from 'lucide-react';
 import { toast } from 'sonner';
 import clsx from 'clsx';
+import { PhotoUpload } from '../components/PhotoUpload';
+import { AlbumManager } from '../components/AlbumManager';
 
-type Tab = 'profile' | 'settings' | 'premium';
+type Tab = 'profile' | 'photos' | 'settings' | 'premium';
 
 export function ProfilePage() {
   const { profile, updateProfile, signOut } = useAuth();
@@ -16,6 +18,8 @@ export function ProfilePage() {
   const [form, setForm] = useState({ ...profile });
 
   if (!profile) return null;
+
+  const id = (profile as any)._id || (profile as any).id || '';
 
   const saveProfile = async () => {
     try {
@@ -45,6 +49,13 @@ export function ProfilePage() {
           <div className="flex items-end justify-between -mt-10 mb-4">
             <div className="relative">
               <Avatar user={profile} size="xl" showOnline={false} />
+              {/* Camera overlay for profile pic change */}
+              <button
+                onClick={() => setTab('photos')}
+                className="absolute bottom-0 right-0 w-8 h-8 bg-purple-600 border-2 border-black rounded-full flex items-center justify-center hover:bg-purple-500 transition-colors"
+              >
+                <Camera size={14} className="text-white" />
+              </button>
             </div>
             <div className="flex gap-2">
               {isPremiumActive && (
@@ -73,13 +84,13 @@ export function ProfilePage() {
 
       {/* Tabs */}
       <div className="flex border-b border-white/5 px-5">
-        {(['profile', 'settings', 'premium'] as Tab[]).map(t => (
+        {(['profile', 'photos', 'settings', 'premium'] as Tab[]).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={clsx('flex-1 py-3 text-sm font-semibold capitalize transition-colors', tab === t ? 'text-purple-400 border-b-2 border-purple-500' : 'text-gray-600 hover:text-gray-400')}
           >
-            {t === 'premium' ? '⚡ Premium' : t}
+            {t === 'premium' ? '⚡' : t === 'photos' ? '📸' : t}
           </button>
         ))}
       </div>
@@ -157,6 +168,47 @@ export function ProfilePage() {
               </div>
             )}
           </>
+        )}
+
+        {/* PHOTOS TAB */}
+        {tab === 'photos' && (
+          <div className="space-y-6">
+            {/* Profile photos */}
+            <div>
+              <h3 className="text-white font-semibold text-sm mb-3">Profile Photo</h3>
+              <PhotoUpload
+                userId={id}
+                maxPhotos={1}
+                isProfilePhoto={true}
+                allowVideo={false}
+                existingUrls={profile.photo_url ? [profile.photo_url] : []}
+                onUploadComplete={(urls) => {
+                  if (urls.length > 0) {
+                    updateProfile({ photo_url: urls[0] } as any);
+                  }
+                }}
+              />
+            </div>
+
+            {/* Additional photos */}
+            <div>
+              <h3 className="text-white font-semibold text-sm mb-3">Additional Photos</h3>
+              <PhotoUpload
+                userId={id}
+                maxPhotos={15}
+                allowVideo={true}
+                existingUrls={profile.photo_urls || []}
+                onUploadComplete={(urls) => {
+                  updateProfile({ photo_urls: urls } as any);
+                }}
+              />
+            </div>
+
+            {/* Albums */}
+            <div className="border-t border-white/5 pt-6">
+              <AlbumManager userId={id} />
+            </div>
+          </div>
         )}
 
         {/* SETTINGS TAB */}

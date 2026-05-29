@@ -135,6 +135,24 @@ export function UserProfileModal({ user, onClose, onChat }: Props) {
             </div>
           )}
 
+          {/* Photo gallery */}
+          {user.photo_urls?.length > 0 && (
+            <div>
+              <p className="text-gray-500 text-xs uppercase mb-1.5">Photos</p>
+              <div className="grid grid-cols-3 gap-1.5">
+                {user.photo_urls.map((url, i) => (
+                  <img
+                    key={i}
+                    src={url}
+                    alt=""
+                    className="w-full aspect-square object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => window.open(url, '_blank')}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           <ReliabilityBadge userId={user.id} />
 
           <div className="flex gap-2">
