@@ -2,8 +2,8 @@ import React, { useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Avatar } from '../components/ui/SurgeAvatar';
 import { Badge } from '../components/ui/SurgeBadge';
-import { GENDERS, ORIENTATIONS, POSITIONS, LOOKING_FOR, KINKS, BODY_TYPES, HEALTH_STATUSES, LIFESTYLES } from '../types';
-import { Eye, Crown, LogOut, ChevronRight, Shield, Zap, EyeOff } from 'lucide-react';
+import { GENDERS, ORIENTATIONS, POSITIONS, LOOKING_FOR, KINKS } from '../types';
+import { Eye, Crown, LogOut, Shield, Zap, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import clsx from 'clsx';
 

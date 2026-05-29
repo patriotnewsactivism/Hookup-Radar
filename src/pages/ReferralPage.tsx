@@ -1,4 +1,3 @@
-import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Gift, Copy, Share2 } from 'lucide-react';
 import { toast } from 'sonner';

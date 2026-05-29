@@ -38,7 +38,7 @@ export function useMessages(conversationId: string | null, myId: string | null) 
     if (!myId || !messages.length) return;
     messages.forEach(m => {
       if (m.receiver_id === myId && m.status !== 'read') {
-        markReadMutation({ message_id: m.id as any }).catch(() => {});
+        markReadMutation({ id: m.id as any }).catch(() => {});
       }
     });
   }, [messages.length, myId]);

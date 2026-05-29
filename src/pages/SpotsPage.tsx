@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Users, MessageCircle, Plus, X, Send, Calendar, Lock, Unlock,
-  Flame, ChevronRight, Clock, Loader2,
+import { MapPin, Users, MessageCircle, Plus, X, Send, Calendar,
+  Flame, ChevronRight, Loader2,
   TreePine, Waves, Beer, Building2, BookOpen, DoorOpen, HelpCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
-import { Avatar } from '../components/ui/SurgeAvatar';
-import { Badge } from '../components/ui/SurgeBadge';
 import { toast } from 'sonner';
 
 type SpotCategory = 'park' | 'beach' | 'bar' | 'sauna' | 'bookstore' | 'restroom' | 'other';

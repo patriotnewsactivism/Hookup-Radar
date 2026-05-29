@@ -12,7 +12,7 @@ export function NotificationBell({ onClick }: Props) {
   const { profile } = useAuth();
   const unreadCount = useQuery(
     api.surgeMessages.getUnreadCount,
-    profile?.id ? { user_id: profile.id } : "skip"
+    profile?.id ? { receiver_id: profile.id } : "skip"
   );
 
   const count = unreadCount ?? 0;

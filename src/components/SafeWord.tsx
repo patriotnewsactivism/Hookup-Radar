@@ -7,7 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import { Shield, AlertTriangle, MapPin, Phone } from 'lucide-react';
 
-export function SafeWord() {
+export function SafeWord({ onClose }: { onClose?: () => void }) {
   const { profile, updateProfile } = useAuth();
   const [activated, setActivated] = useState(false);
   const [sending, setSending] = useState(false);
