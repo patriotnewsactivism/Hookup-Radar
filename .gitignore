@@ -10,7 +10,6 @@ dist/
 .env.*.local
 
 # Convex generated files
-convex/_generated/
 
 # IDE
 .vscode/
@@ -32,4 +31,3 @@ tmp/
 test-results/
 playwright-report/bun.lock
 package-lock.json
-convex/_generated/
