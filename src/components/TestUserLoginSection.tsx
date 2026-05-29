@@ -5,8 +5,8 @@ import { Button } from "./ui/button";
 import { Separator } from "./ui/separator";
 
 const TEST_USER = {
-  email: "agent@test.local",
-  password: "TestAgent123!",
+  email: "agent-3f43aa9d@test.local",
+  password: "dTpb6fo2hx6IKy14hZDxaFPMiF19osKz",
   name: "Test Agent",
 } as const;
 
