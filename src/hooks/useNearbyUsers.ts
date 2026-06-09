@@ -1,3 +1,4 @@
+// src/hooks/useNearbyUsers.ts  —  Enhanced with body_type, ethnicity, verified_only filters
 import { useMemo } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
@@ -10,19 +11,24 @@ function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
 export interface Filters {
-  orientation?: string[];
-  looking_for?: string[];
-  kinks?: string[];
-  gender?: string[];
-  max_distance?: number; // feet
-  min_age?: number;
-  max_age?: number;
-  online_only?: boolean;
+  orientation?:    string[];
+  looking_for?:    string[];
+  kinks?:          string[];
+  gender?:         string[];
+  body_type?:      string[];   // NEW
+  ethnicity?:      string[];   // NEW
+  max_distance?:   number;     // feet
+  min_age?:        number;
+  max_age?:        number;
+  online_only?:    boolean;
+  verified_only?:  boolean;    // NEW
 }
 
 export function useNearbyUsers(
@@ -31,19 +37,18 @@ export function useNearbyUsers(
   filters?: Filters,
   myOrientation?: Orientation
 ) {
-  // Convex reactive query for nearby users
   const rawUsers = useQuery(
     api.surgeUsers.getNearby,
     myLat && myLng
       ? {
-          lat: myLat,
-          lng: myLng,
-          radius: 0.15,
-          onlineOnly: filters?.online_only,
-          minAge: filters?.min_age,
-          maxAge: filters?.max_age,
+          lat:          myLat,
+          lng:          myLng,
+          radius:       0.15,
+          onlineOnly:   filters?.online_only,
+          minAge:       filters?.min_age,
+          maxAge:       filters?.max_age,
         }
-      : "skip"
+      : 'skip'
   );
 
   const loading = rawUsers === undefined;
@@ -51,37 +56,50 @@ export function useNearbyUsers(
   const users = useMemo(() => {
     if (!rawUsers || !myLat || !myLng) return [];
 
-    let results = (rawUsers as SurgeUser[]).map(u => ({
+    let results = (rawUsers as SurgeUser[]).map((u) => ({
       ...u,
-      distance: haversineDistance(myLat, myLng, u.lat, u.lng)
+      distance: haversineDistance(myLat, myLng, u.lat, u.lng),
     }));
 
-    // Apply client-side filters
+    // ── Client-side filters ────────────────────────────────
     if (filters?.max_distance) {
-      results = results.filter(u => (u.distance ?? 0) <= filters.max_distance!);
+      results = results.filter((u) => (u.distance ?? 0) <= filters.max_distance!);
     }
     if (filters?.orientation?.length) {
-      results = results.filter(u => filters.orientation!.includes(u.orientation));
+      results = results.filter((u) => filters.orientation!.includes(u.orientation));
     }
     if (filters?.gender?.length) {
-      results = results.filter(u => filters.gender!.includes(u.gender));
+      results = results.filter((u) => filters.gender!.includes(u.gender));
     }
     if (filters?.looking_for?.length) {
-      results = results.filter(u => u.looking_for?.some(lf => filters.looking_for!.includes(lf)));
+      results = results.filter((u) =>
+        u.looking_for?.some((lf) => filters.looking_for!.includes(lf))
+      );
     }
     if (filters?.kinks?.length) {
-      results = results.filter(u => u.kinks?.some(k => filters.kinks!.includes(k)));
+      results = results.filter((u) =>
+        u.kinks?.some((k) => filters.kinks!.includes(k))
+      );
+    }
+    // NEW filters
+    if (filters?.body_type?.length) {
+      results = results.filter((u) => filters.body_type!.includes(u.body_type));
+    }
+    if (filters?.ethnicity?.length) {
+      results = results.filter((u) => filters.ethnicity!.includes(u.ethnicity));
+    }
+    if (filters?.verified_only) {
+      results = results.filter((u) => u.is_verified);
     }
 
-    // Inject orientation-matched bots
-    const bots = getBotsForArea(myLat, myLng, myOrientation).map(bot => ({
+    // ── Inject bots ───────────────────────────────────────
+    const bots = getBotsForArea(myLat, myLng, myOrientation).map((bot) => ({
       ...bot,
       distance: haversineDistance(myLat, myLng, bot.lat, bot.lng),
     })) as SurgeUser[];
 
     const combined = interleave(results, bots, results.length < 5 ? 1 : 4);
     combined.sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0));
-
     return combined;
   }, [rawUsers, myLat, myLng, filters, myOrientation]);
 
