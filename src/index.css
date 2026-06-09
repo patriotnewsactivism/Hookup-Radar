@@ -2,6 +2,79 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ─── Navy/Midnight Theme Tokens ─────────────────────────────────────────── */
+:root {
+  /* Backgrounds */
+  --bg-base:       #050c1a;   /* deepest navy — replaces pure black */
+  --bg-surface:    #0a1628;   /* card/surface navy */
+  --bg-elevated:   #0f1f38;   /* modals, sheets */
+  --bg-muted:      #162540;   /* subtle fills */
+  --bg-input:      #0d1c33;   /* input fields */
+
+  /* Accent — gold */
+  --accent:        #d4a843;
+  --accent-bright: #f0c155;
+  --accent-muted:  #8a6a22;
+  --accent-subtle: rgba(212, 168, 67, 0.12);
+
+  /* Borders */
+  --border:        rgba(212, 168, 67, 0.15);
+  --border-strong: rgba(212, 168, 67, 0.35);
+
+  /* Text */
+  --text-primary:  #e8eaf2;
+  --text-secondary:#8fa3bf;
+  --text-muted:    #4d6480;
+}
+
+/* ─── Global overrides — swap purple/gray for navy/gold ─────────────────── */
+
+/* All bg-gray-950 → deep navy base */
+.bg-gray-950  { background-color: var(--bg-base) !important; }
+/* bg-gray-900 → surface navy */
+.bg-gray-900  { background-color: var(--bg-surface) !important; }
+/* bg-gray-800 → elevated navy */
+.bg-gray-800  { background-color: var(--bg-elevated) !important; }
+/* bg-gray-700 → muted navy */
+.bg-gray-700  { background-color: var(--bg-muted) !important; }
+
+/* Purple accent → gold */
+.bg-purple-600      { background-color: var(--accent) !important; color: #050c1a !important; }
+.bg-purple-700      { background-color: var(--accent-muted) !important; }
+.bg-purple-500      { background-color: var(--accent-bright) !important; color: #050c1a !important; }
+.bg-purple-950\/50  { background-color: rgba(212,168,67,0.1) !important; }
+.bg-purple-900\/40  { background-color: rgba(212,168,67,0.08) !important; }
+.bg-purple-900\/50  { background-color: rgba(212,168,67,0.10) !important; }
+.bg-purple-900      { background-color: rgba(212,168,67,0.14) !important; }
+
+.text-purple-400    { color: var(--accent) !important; }
+.text-purple-300    { color: var(--accent-bright) !important; }
+
+.border-purple-600  { border-color: var(--accent) !important; }
+.border-purple-700  { border-color: var(--accent-muted) !important; }
+.border-purple-500  { border-color: var(--accent-bright) !important; }
+
+/* Gray text tones */
+.text-gray-400  { color: var(--text-secondary) !important; }
+.text-gray-500  { color: var(--text-muted) !important; }
+.text-gray-600  { color: #3d5570 !important; }
+.text-gray-300  { color: var(--text-primary) !important; }
+
+/* Borders */
+.border-gray-800  { border-color: rgba(212,168,67,0.12) !important; }
+.border-gray-700  { border-color: rgba(212,168,67,0.18) !important; }
+.border-white\/10 { border-color: rgba(212,168,67,0.12) !important; }
+
+/* From/to gradients — purple → gold */
+.from-purple-600 { --tw-gradient-from: var(--accent) !important; }
+.from-purple-400 { --tw-gradient-from: var(--accent-bright) !important; }
+.to-pink-600     { --tw-gradient-to: #c0392b !important; }
+.to-purple-800   { --tw-gradient-to: var(--accent-muted) !important; }
+
+/* Active/hover rings */
+.ring-purple-500 { --tw-ring-color: var(--accent) !important; }
+
+/* ─── Base styles ────────────────────────────────────────────────────────── */
 * {
   -webkit-tap-highlight-color: transparent;
   box-sizing: border-box;
@@ -12,79 +85,66 @@ html, body, #root {
   width: 100%;
   margin: 0;
   padding: 0;
-  background: #000;
+  background: var(--bg-base);
+  color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
-/* Prevent overscroll bounce */
 body {
   overscroll-behavior: none;
 }
 
-/* Safe area support for notched phones */
 .safe-area-bottom {
   padding-bottom: max(env(safe-area-inset-bottom), 8px);
 }
 
-/* Smooth scrolling */
-* {
-  scroll-behavior: smooth;
-}
+* { scroll-behavior: smooth; }
 
-/* Hide scrollbar but keep scroll */
-::-webkit-scrollbar {
-  display: none;
-}
+::-webkit-scrollbar { display: none; }
 
-/* Pulse animation for Right Now markers */
+/* Pulse ring — gold instead of red */
 @keyframes pulse-ring {
-  0% { transform: scale(0.8); opacity: 1; }
-  100% { transform: scale(2); opacity: 0; }
+  0%   { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2);   opacity: 0; }
 }
-
 .marker-pulse::before {
   content: '';
   position: absolute;
   inset: -4px;
   border-radius: 50%;
-  background: rgba(239, 68, 68, 0.4);
+  background: rgba(212, 168, 67, 0.4);
   animation: pulse-ring 1.5s ease-out infinite;
 }
 
-/* Image loading */
 img {
   -webkit-user-drag: none;
   user-select: none;
 }
 
-/* Range input styling */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   height: 4px;
   border-radius: 4px;
-  background: #374151;
+  background: var(--bg-muted);
   outline: none;
 }
-
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #7c3aed;
+  background: var(--accent);
   cursor: pointer;
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.3);
+  box-shadow: 0 0 0 3px rgba(212, 168, 67, 0.3);
 }
 
-/* Hide scrollbar but keep scrolling */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* Leaflet container */
 .leaflet-container {
   width: 100%;
   height: 100%;
-  background: #000 !important;
+  background: var(--bg-base) !important;
 }
