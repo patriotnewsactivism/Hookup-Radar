@@ -15,6 +15,8 @@ import type * as http from "../http.js";
 import type * as seedTestUser from "../seedTestUser.js";
 import type * as surgeMedia from "../surgeMedia.js";
 import type * as surgeMessages from "../surgeMessages.js";
+import type * as surgeModeration from "../surgeModeration.js";
+import type * as surgeNotifications from "../surgeNotifications.js";
 import type * as surgeRatings from "../surgeRatings.js";
 import type * as surgeReports from "../surgeReports.js";
 import type * as surgeSpots from "../surgeSpots.js";
@@ -37,6 +39,8 @@ declare const fullApi: ApiFromModules<{
   seedTestUser: typeof seedTestUser;
   surgeMedia: typeof surgeMedia;
   surgeMessages: typeof surgeMessages;
+  surgeModeration: typeof surgeModeration;
+  surgeNotifications: typeof surgeNotifications;
   surgeRatings: typeof surgeRatings;
   surgeReports: typeof surgeReports;
   surgeSpots: typeof surgeSpots;
