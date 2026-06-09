@@ -1,3 +1,4 @@
+// v2.1 — navy/midnight theme + TS fixes
 import React, { useState } from 'react';
 import { Toaster } from 'sonner';
 import { ConvexAuthProvider } from '@convex-dev/auth/react';
