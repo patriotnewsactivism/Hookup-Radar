@@ -22,12 +22,16 @@ function AppInner() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#080010] flex items-center justify-center px-8">
+      <div className="min-h-screen flex items-center justify-center px-8"
+        style={{ background: 'var(--bg-base)' }}>
         <div className="flex flex-col items-center gap-4 text-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center animate-pulse">
+          <div
+            className="w-16 h-16 rounded-2xl flex items-center justify-center animate-pulse"
+            style={{ background: 'linear-gradient(135deg, #d4a843, #8a6a22)' }}
+          >
             <span className="text-white text-2xl">⚡</span>
           </div>
-          <p className="text-gray-600 text-sm">Loading Surge…</p>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading Surge…</p>
         </div>
       </div>
     );
@@ -42,37 +46,42 @@ function AppInner() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-black overflow-hidden">
+    <div className="h-screen flex flex-col overflow-hidden"
+      style={{ background: 'var(--bg-base)' }}>
       <main className="flex-1 overflow-hidden">
-        {view === 'map' && <MapPage />}
-        {view === 'grid' && <GridPage />}
+        {view === 'map'       && <MapPage />}
+        {view === 'grid'      && <GridPage />}
         {view === 'chat-list' && <ChatListPage />}
-        {view === 'profile' && <ProfilePage />}
-        {view === 'spots' && <SpotsPage />}
+        {view === 'profile'   && <ProfilePage />}
+        {view === 'spots'     && <SpotsPage />}
       </main>
       <BottomNav active={view} onChange={handleViewChange} unreadCount={unread} />
     </div>
   );
 }
 
+function AppWithAuth() {
+  return (
+    <AuthProvider>
+      <AppInner />
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          style: {
+            background: 'var(--bg-elevated)',
+            color: 'var(--text-primary)',
+            border: '1px solid var(--border)',
+          },
+        }}
+      />
+    </AuthProvider>
+  );
+}
+
 export default function App() {
   return (
     <ConvexAuthProvider client={convex}>
-      <AuthProvider>
-        <Toaster
-          position="top-center"
-          theme="dark"
-          toastOptions={{
-            style: {
-              background: '#1f2937',
-              color: '#fff',
-              borderRadius: '12px',
-              border: '1px solid rgba(255,255,255,0.1)',
-            },
-          }}
-        />
-        <AppInner />
-      </AuthProvider>
+      <AppWithAuth />
     </ConvexAuthProvider>
   );
 }
