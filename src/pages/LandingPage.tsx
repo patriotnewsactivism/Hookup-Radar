@@ -37,8 +37,8 @@ const FEATURES = [
   {
     icon: Radar,
     title: 'Live Radar Map',
-    tagline: 'See exactly who's nearby right now',
-    desc: 'Real-time GPS map shows verified users around you. Filter by distance, vibe, and what they're into. No guessing — just real people, real close.',
+    tagline: `See exactly who's nearby right now`,
+    desc: `Real-time GPS map shows verified users around you. Filter by distance, vibe, and what they're into. No guessing — just real people, real close.`,
     color: 'from-purple-600 to-violet-800',
     accent: 'text-purple-400',
     badge: '📡 Live',
@@ -81,7 +81,7 @@ const FEATURES = [
   {
     icon: Flame,
     title: 'Right Now Mode',
-    tagline: 'Signal you're available — instantly',
+    tagline: `Signal you're available — instantly`,
     desc: 'Tap once and your profile pulses at the top of every nearby grid. No awkward waiting. People who are ready now find people who are ready now.',
     color: 'from-red-600 to-orange-700',
     accent: 'text-red-400',
@@ -107,7 +107,7 @@ const FEATURES = [
   {
     icon: MapPin,
     title: 'Community Spots',
-    tagline: 'Find where everyone's actually hanging',
+    tagline: `Find where everyone's actually hanging`,
     desc: 'User-submitted venues, parks, bars, and more. Each Spot has its own group chat, event board, and live attendee count. Discover the scene before you go.',
     color: 'from-orange-600 to-amber-700',
     accent: 'text-orange-400',
@@ -253,8 +253,8 @@ const FEATURES = [
   {
     icon: SlidersHorizontal,
     title: 'Deep Filters',
-    tagline: 'Find exactly your type — not everyone's',
-    desc: 'Filter by orientation, gender, body type, ethnicity, kinks, what they're looking for, distance, age, and online status. The most detailed search on any hookup platform.',
+    tagline: `Find exactly your type — not everyone's`,
+    desc: `Filter by orientation, gender, body type, ethnicity, kinks, what they're looking for, distance, age, and online status. The most detailed search on any hookup platform.`,
     color: 'from-cyan-600 to-sky-700',
     accent: 'text-cyan-400',
     badge: '🎛️ Smart',
@@ -321,7 +321,7 @@ const FEATURES = [
 const TESTIMONIALS = [
   { handle: '@anon_atl', text: 'Met 3 people in my first week. This thing actually works 😭', emoji: '🔥' },
   { handle: '@hustle_chi', text: 'SafeWord feature alone makes this worth it. Finally an app that gets safety.', emoji: '🛡️' },
-  { handle: '@nocturnalnyc', text: 'The Spots section is insane — found a whole scene I didn't know existed', emoji: '⚡' },
+  { handle: '@nocturnalnyc', text: `The Spots section is insane — found a whole scene I didn't know existed`, emoji: '⚡' },
   { handle: '@verified_vibes', text: 'Tired of fake profiles elsewhere. The trust ratings here are real.', emoji: '✅' },
 ];
 
@@ -589,7 +589,7 @@ export function LandingPage() {
         <div className="space-y-4">
           {[
             { num: '01', icon: '⚡', title: 'Create your profile', desc: 'Sign up free, add your photos, and tell people what you\'re into. Takes 3 minutes.' },
-            { num: '02', icon: '📡', title: 'See who\'s nearby', desc: 'Open the map or grid. Real people, real distance, right now.' },
+            { num: '02', icon: '📡', title: `See who\'s nearby`, desc: 'Open the map or grid. Real people, real distance, right now.' },
             { num: '03', icon: '💬', title: 'Connect & meet', desc: 'Message freely, find a Spot, and make it happen. No paywalls.' },
           ].map((step, i) => (
             <FadeIn key={step.num} delay={i * 0.1}>
