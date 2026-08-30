@@ -161,10 +161,10 @@ export function GridPage() {
       <div className="flex-1 overflow-y-auto">
 
         {/* Banner ad (non-premium) */}
-        {!profile?.is_premium && <AdCard type="banner" />}
+        {!profile?.is_premium && <AdCard />}
 
         {/* Right Now live feed */}
-        <RightNowFeed users={rightNowUsers} onSelect={setSelectedUser} />
+        <RightNowFeed onSelectUser={setSelectedUser} />
 
         {/* Right Now section */}
         {rightNowUsers.length > 0 && (
@@ -217,7 +217,7 @@ export function GridPage() {
               otherWithAds.forEach((item) => {
                 if (item === 'ad') {
                   flushBuffer();
-                  if (!profile?.is_premium) rows.push(<AdCard key={`ad-${rows.length}`} type="inline" />);
+                  if (!profile?.is_premium) rows.push(<AdCard key={`ad-${rows.length}`} />);
                 } else {
                   cardBuffer.push(item as SurgeUser);
                 }
