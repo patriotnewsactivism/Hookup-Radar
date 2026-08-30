@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  NETLIFY_SITE_ID: 0fb593c2-84b1-4cf8-a989-04fa8f002647
+  NETLIFY_SITE_ID: 23ecdb26-e1d1-45dd-8ed2-f68903749cd7
   VITE_CONVEX_URL: ${{ secrets.VITE_CONVEX_URL || vars.VITE_CONVEX_URL }}
 
 jobs:
@@ -60,7 +60,7 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in {1..12}; do
-            status="$(curl -sS -L -o /tmp/surge-home.html -w '%{http_code}' 'https://surgeonline-site.netlify.app/')"
+            status="$(curl -sS -L -o /tmp/surge-home.html -w '%{http_code}' 'https://surgeonline-wtpnews.netlify.app/')"
             if [[ "$status" == "200" ]] && grep -qi '<div id="root"' /tmp/surge-home.html; then
               echo "Surge Netlify origin is healthy."
               exit 0
