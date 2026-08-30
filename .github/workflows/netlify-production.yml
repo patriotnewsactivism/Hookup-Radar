@@ -1,0 +1,75 @@
+name: Surge Netlify Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: surge-netlify-production
+  cancel-in-progress: false
+
+env:
+  NETLIFY_SITE_ID: 0fb593c2-84b1-4cf8-a989-04fa8f002647
+  VITE_CONVEX_URL: ${{ secrets.VITE_CONVEX_URL || vars.VITE_CONVEX_URL }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      NETLIFY_AUTH_TOKEN_PRIMARY: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_AUTH_TOKEN_ALT: ${{ secrets.NETLIFY_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Validate production configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${VITE_CONVEX_URL:-}" || { echo "::error::Missing VITE_CONVEX_URL repository/org secret or variable"; exit 2; }
+          token="${NETLIFY_AUTH_TOKEN_PRIMARY:-}"
+          if [[ -z "$token" ]]; then token="${NETLIFY_AUTH_TOKEN_ALT:-}"; fi
+          test -n "$token" || { echo "::error::Missing NETLIFY_AUTH_TOKEN (or NETLIFY_TOKEN) repository/org secret"; exit 3; }
+          echo "::add-mask::$token"
+          echo "NETLIFY_AUTH_TOKEN=$token" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build production frontend
+        run: npm run build
+
+      - name: Deploy to Netlify production
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes netlify-cli@latest deploy \
+            --dir=dist \
+            --prod \
+            --site="$NETLIFY_SITE_ID" \
+            --auth="$NETLIFY_AUTH_TOKEN" \
+            --message="Surge ${GITHUB_SHA}"
+
+      - name: Verify Netlify origin
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in {1..12}; do
+            status="$(curl -sS -L -o /tmp/surge-home.html -w '%{http_code}' 'https://surgeonline-site.netlify.app/')"
+            if [[ "$status" == "200" ]] && grep -qi '<div id="root"' /tmp/surge-home.html; then
+              echo "Surge Netlify origin is healthy."
+              exit 0
+            fi
+            echo "Attempt ${attempt}: HTTP ${status}; waiting for deployment propagation..."
+            sleep 5
+          done
+          echo "::error::Netlify origin did not become healthy within the verification window."
+          head -80 /tmp/surge-home.html || true
+          exit 4
