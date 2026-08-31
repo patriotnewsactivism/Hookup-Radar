@@ -9,71 +9,60 @@ export function useMessages(conversationId: string | null, myId: string | null) 
   const botTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Reactive Convex query for messages
   const rawMessages = useQuery(
     api.surgeMessages.getByConversation,
-    conversationId ? { conversation_id: conversationId } : "skip"
+    conversationId ? { conversation_id: conversationId } : 'skip'
   );
   const sendMutation = useMutation(api.surgeMessages.send);
+  const sendBotReplyMutation = useMutation(api.surgeMessages.sendBotReply);
   const markReadMutation = useMutation(api.surgeMessages.markRead);
 
   const loading = rawMessages === undefined;
-
-  // Map Convex messages to our Message type
-  const messages: Message[] = (rawMessages ?? []).map((m: any) => ({
-    id: m._id,
-    conversation_id: m.conversation_id,
-    sender_id: m.sender_id,
-    receiver_id: m.receiver_id,
-    text: m.text || '',
-    media_url: m.media_url,
-    media_type: m.media_type,
-    reply_to_id: m.reply_to_id,
-    status: m.status || 'sent',
-    created_date: m.created_date || new Date(m._creationTime).toISOString(),
+  const messages: Message[] = (rawMessages ?? []).map((message: any) => ({
+    id: message._id,
+    conversation_id: message.conversation_id,
+    sender_id: message.sender_id,
+    receiver_id: message.receiver_id,
+    text: message.text || '',
+    media_url: message.media_url,
+    media_type: message.media_type,
+    reply_to_id: message.reply_to_id,
+    status: message.status || 'sent',
+    created_date: message.created_date || new Date(message._creationTime).toISOString(),
   }));
 
-  // Mark messages as read
   useEffect(() => {
     if (!myId || !messages.length) return;
-    messages.forEach(m => {
-      if (m.receiver_id === myId && m.status !== 'read') {
-        markReadMutation({ id: m.id as any }).catch(() => {});
+    messages.forEach((message) => {
+      if (message.receiver_id === myId && message.status !== 'read') {
+        markReadMutation({ id: message.id as any }).catch(() => {});
       }
     });
-  }, [messages.length, myId]);
+  }, [messages, myId, markReadMutation]);
 
-  // Bot reply scheduling
   const scheduleBotReply = useCallback((botId: string, userMessage: string) => {
     if (!conversationId || !myId) return;
-
     const delay = botReplyDelay();
     const typingStart = Math.max(0, delay - 3000);
 
     if (botTimerRef.current) clearTimeout(botTimerRef.current);
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
-
     typingTimerRef.current = setTimeout(() => setBotTyping(true), typingStart);
 
     botTimerRef.current = setTimeout(async () => {
       setBotTyping(false);
-      const replyText = getBotReply(userMessage);
-
-      await sendMutation({
+      await sendBotReplyMutation({
         conversation_id: conversationId,
-        sender_id: botId,
+        bot_id: botId,
         receiver_id: myId,
-        text: replyText,
+        text: getBotReply(userMessage),
       });
     }, delay);
-  }, [conversationId, myId, sendMutation]);
+  }, [conversationId, myId, sendBotReplyMutation]);
 
-  // Cleanup timers
-  useEffect(() => {
-    return () => {
-      if (botTimerRef.current) clearTimeout(botTimerRef.current);
-      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
-    };
+  useEffect(() => () => {
+    if (botTimerRef.current) clearTimeout(botTimerRef.current);
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
   }, []);
 
   const sendMessage = async (
@@ -83,7 +72,6 @@ export function useMessages(conversationId: string | null, myId: string | null) 
     mediaType?: 'image' | 'video',
   ) => {
     if (!conversationId || !myId || !receiverId) return;
-
     await sendMutation({
       conversation_id: conversationId,
       sender_id: myId,
@@ -92,10 +80,7 @@ export function useMessages(conversationId: string | null, myId: string | null) 
       media_url: mediaUrl,
       media_type: mediaType,
     });
-
-    if (isBot(receiverId)) {
-      scheduleBotReply(receiverId, text);
-    }
+    if (isBot(receiverId)) scheduleBotReply(receiverId, text);
   };
 
   return { messages, loading, sendMessage, botTyping };
