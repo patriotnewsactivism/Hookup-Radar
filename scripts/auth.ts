@@ -10,7 +10,6 @@ import { TEST_USER } from "./testUser";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const TMP_DIR = join(__dirname, "..", "tmp");
-
 const AUTH_STATE_MAX_AGE_MINUTES = 50;
 
 function getAppUrl(): string {
@@ -44,26 +43,20 @@ export interface PageDebugInfo {
 
 export class PageHelper {
   private consoleLogs: ConsoleLog[] = [];
-  private consoleHandler: ((msg: ConsoleMessage) => void) | null = null;
 
   constructor(
     public readonly page: Page,
     public readonly browser: Browser,
     public readonly context: BrowserContext,
   ) {
-    this.setupConsoleCapture();
-  }
-
-  private setupConsoleCapture(): void {
-    this.consoleHandler = (msg: ConsoleMessage) => {
+    this.page.on("console", (msg: ConsoleMessage) => {
       this.consoleLogs.push({
         type: msg.type(),
         text: msg.text(),
         timestamp: new Date(),
         location: msg.location().url,
       });
-    };
-    this.page.on("console", this.consoleHandler);
+    });
   }
 
   getConsoleLogs(): ConsoleLog[] {
@@ -76,17 +69,15 @@ export class PageHelper {
 
   printConsoleLogs(): void {
     if (this.consoleLogs.length === 0) {
-      console.log("\n📋 Console Logs: (none)\n");
+      console.log("\nConsole Logs: (none)\n");
       return;
     }
-    console.log("\n📋 Console Logs:");
-    console.log("─".repeat(60));
+    console.log("\nConsole Logs:");
+    console.log("-".repeat(60));
     for (const log of this.consoleLogs) {
-      const icon =
-        log.type === "error" ? "❌" : log.type === "warning" ? "⚠️" : "  ";
-      console.log(`${icon} [${log.type.toUpperCase()}] ${log.text}`);
+      console.log(`[${log.type.toUpperCase()}] ${log.text}`);
     }
-    console.log("─".repeat(60));
+    console.log("-".repeat(60));
   }
 
   async getPageContent(): Promise<string> {
@@ -95,10 +86,10 @@ export class PageHelper {
 
   async printPageContent(): Promise<void> {
     const content = await this.getPageContent();
-    console.log("\n📄 Page Content:");
-    console.log("─".repeat(60));
+    console.log("\nPage Content:");
+    console.log("-".repeat(60));
     console.log(content || "(empty)");
-    console.log("─".repeat(60));
+    console.log("-".repeat(60));
   }
 
   async getDebugInfo(): Promise<PageDebugInfo> {
@@ -112,11 +103,8 @@ export class PageHelper {
 
   async printDebugInfo(): Promise<void> {
     const info = await this.getDebugInfo();
-    console.log("\n🔍 Debug Info:");
-    console.log("─".repeat(60));
-    console.log(`URL: ${info.url}`);
+    console.log(`\nURL: ${info.url}`);
     console.log(`Title: ${info.title}`);
-    console.log("─".repeat(60));
     await this.printPageContent();
     this.printConsoleLogs();
   }
@@ -126,7 +114,7 @@ export class PageHelper {
     const filename = name || `screenshot-${Date.now()}.png`;
     const path = join(TMP_DIR, filename);
     await this.page.screenshot({ path, fullPage: true });
-    console.log(`📸 Screenshot saved: ${path}`);
+    console.log(`Screenshot saved: ${path}`);
     return path;
   }
 
@@ -141,110 +129,82 @@ export class PageHelper {
 }
 
 async function isAuthenticated(page: Page): Promise<boolean> {
-  // If we're on /login or /signup, we're not authenticated
-  const url = page.url();
-  return !url.includes("/login") && !url.includes("/signup");
+  const exploreVisible = await page
+    .getByRole("button", { name: "Explore", exact: true })
+    .isVisible()
+    .catch(() => false);
+  if (exploreVisible) return true;
+
+  return await page
+    .getByText("Let's set you up", { exact: false })
+    .isVisible()
+    .catch(() => false);
 }
 
-export async function ensureTestUserExists(page: Page): Promise<void> {
-  await page.goto(`${getAppUrl()}/signup`, { waitUntil: "networkidle" });
+async function openSignInForm(page: Page): Promise<void> {
+  await page.goto(`${getAppUrl()}/`, { waitUntil: "networkidle" });
+  if (await isAuthenticated(page)) return;
 
-  if (await isAuthenticated(page)) {
-    console.log("[Auth] Already logged in");
-    return;
+  const signInCta = page.getByRole("button", { name: "Sign In", exact: true }).first();
+  if (!(await signInCta.isVisible().catch(() => false))) {
+    throw new Error("Canonical sign-in action is not visible");
   }
-
-  const nameInput = page.locator("input[name='name']");
-  const hasNameField = await nameInput.isVisible().catch(() => false);
-
-  if (hasNameField) {
-    console.log("[Auth] Creating test user account...");
-    await nameInput.fill(TEST_USER.name);
-    await page.locator("input[name='email']").fill(TEST_USER.email);
-    await page.locator("input[name='password']").fill(TEST_USER.password);
-    await page.locator("button[type='submit']").click();
-    await page.waitForTimeout(1000);
-
-    if (await isAuthenticated(page)) {
-      console.log("[Auth] Test user created and logged in");
-      return;
-    }
-
-    const errorVisible = await page
-      .locator("text=Could not create account")
-      .isVisible()
-      .catch(() => false);
-    if (errorVisible) {
-      console.log("[Auth] Account may already exist, trying sign in...");
-    }
-  }
-
-  await signInTestUser(page);
+  await signInCta.click();
+  await page.locator('input[type="email"]').waitFor({ state: "visible" });
+  await page.locator('input[type="password"]').waitFor({ state: "visible" });
 }
 
 export async function signInTestUser(page: Page): Promise<void> {
-  await page.goto(`${getAppUrl()}/login`, { waitUntil: "networkidle" });
+  await openSignInForm(page);
+  if (await isAuthenticated(page)) return;
 
-  if (await isAuthenticated(page)) {
-    console.log("[Auth] Already logged in");
-    return;
-  }
+  await page.locator('input[type="email"]').fill(TEST_USER.email);
+  await page.locator('input[type="password"]').fill(TEST_USER.password);
+  await page.getByRole("button", { name: "Sign In", exact: true }).last().click();
 
-  console.log("[Auth] Signing in as test user...");
-  await page.locator("input[name='email']").fill(TEST_USER.email);
-  await page.locator("input[name='password']").fill(TEST_USER.password);
-  await page.locator("button[type='submit']").click();
-
-  await page.waitForTimeout(3000);
+  await page.waitForFunction(
+    () => {
+      const text = document.body.innerText;
+      return (
+        text.includes("Explore") ||
+        text.includes("Let's set you up") ||
+        text.includes("Something went wrong")
+      );
+    },
+    undefined,
+    { timeout: 15_000 },
+  );
 
   if (!(await isAuthenticated(page))) {
-    console.log("[Auth] Refreshing page to check auth state...");
-    await page.reload({ waitUntil: "networkidle" });
-    await page.waitForTimeout(2000);
-  }
-
-  if (await isAuthenticated(page)) {
-    console.log("[Auth] Signed in successfully");
-  } else {
     await mkdir(TMP_DIR, { recursive: true });
     await page.screenshot({ path: join(TMP_DIR, "auth-debug.png") });
-    const content = await page.locator("body").innerText();
-    console.log("[Auth] Page content after sign-in attempt:", content);
-    throw new Error("Failed to sign in - Dashboard not visible");
+    throw new Error("Failed to reach an authenticated application state");
   }
+}
+
+// Compatibility name retained for existing scripts. Test accounts are no
+// longer auto-created from browser automation; they must be provisioned
+// out-of-band and supplied through runtime-only E2E environment variables.
+export async function ensureTestUserExists(page: Page): Promise<void> {
+  await signInTestUser(page);
 }
 
 export async function saveAuthState(page: Page): Promise<void> {
   await mkdir(TMP_DIR, { recursive: true });
-  const authStatePath = getAuthStatePath();
-  const context = page.context();
-  await context.storageState({ path: authStatePath });
-  console.log(`[Auth] Auth state saved to ${authStatePath}`);
+  await page.context().storageState({ path: getAuthStatePath() });
 }
 
 export async function loadAuthState(): Promise<string | undefined> {
-  const authStatePath = getAuthStatePath();
-
-  if (!existsSync(authStatePath)) {
-    return undefined;
-  }
+  const path = getAuthStatePath();
+  if (!existsSync(path)) return undefined;
 
   try {
-    const stats = statSync(authStatePath);
-    const ageMinutes = (Date.now() - stats.mtimeMs) / 1000 / 60;
-
+    const ageMinutes = (Date.now() - statSync(path).mtimeMs) / 1000 / 60;
     if (ageMinutes > AUTH_STATE_MAX_AGE_MINUTES) {
-      console.log(
-        `[Auth] Auth state expired (${ageMinutes.toFixed(0)}m old, max ${AUTH_STATE_MAX_AGE_MINUTES}m), will re-authenticate`,
-      );
-      unlinkSync(authStatePath);
+      unlinkSync(path);
       return undefined;
     }
-
-    console.log(
-      `[Auth] Loading auth state from ${authStatePath} (${ageMinutes.toFixed(0)}m old)`,
-    );
-    return authStatePath;
+    return path;
   } catch {
     return undefined;
   }
@@ -252,112 +212,90 @@ export async function loadAuthState(): Promise<string | undefined> {
 
 export function clearAllAuthStates(): void {
   if (!existsSync(TMP_DIR)) return;
-
-  const files = readdirSync(TMP_DIR);
-  let cleared = 0;
-
-  for (const file of files) {
+  for (const file of readdirSync(TMP_DIR)) {
     if (file.startsWith("auth-state-") && file.endsWith(".json")) {
       try {
         unlinkSync(join(TMP_DIR, file));
-        cleared++;
-      } catch {}
+      } catch {
+        // Best-effort local test cleanup.
+      }
     }
   }
+}
 
-  if (cleared > 0) {
-    console.log(`[Auth] Cleared ${cleared} auth state file(s)`);
-  }
+async function createBrowserContext(): Promise<{
+  browser: Browser;
+  context: BrowserContext;
+  page: Page;
+}> {
+  const storageState = await loadAuthState();
+  const browser = await chromium.launch();
+  const context = await browser.newContext(storageState ? { storageState } : {});
+  const page = await context.newPage();
+  return { browser, context, page };
 }
 
 export async function createAuthenticatedBrowser(): Promise<{
   browser: Browser;
   page: Page;
 }> {
-  const storageState = await loadAuthState();
-  const browser = await chromium.launch();
-  const context = await browser.newContext(
-    storageState ? { storageState } : {},
-  );
-  const page = await context.newPage();
-
-  // Check auth by going to login - if we get redirected, we're authenticated
-  await page.goto(`${getAppUrl()}/login`, { waitUntil: "networkidle" });
-
+  const { browser, page } = await createBrowserContext();
+  await page.goto(`${getAppUrl()}/`, { waitUntil: "networkidle" });
   if (!(await isAuthenticated(page))) {
-    await ensureTestUserExists(page);
+    await signInTestUser(page);
     await saveAuthState(page);
   }
-
   return { browser, page };
 }
 
 export async function createPageHelper(): Promise<PageHelper> {
-  const storageState = await loadAuthState();
-  const browser = await chromium.launch();
-  const context = await browser.newContext(
-    storageState ? { storageState } : {},
-  );
-  const page = await context.newPage();
-
+  const { browser, context, page } = await createBrowserContext();
   const helper = new PageHelper(page, browser, context);
-
-  // Check auth by going to login - if we stay on login, we need to authenticate
-  await page.goto(`${getAppUrl()}/login`, { waitUntil: "networkidle" });
-
-  if (!(await isAuthenticated(page))) {
-    // Not authenticated - log in
-    await ensureTestUserExists(page);
-    await saveAuthState(page);
-  }
-
-  // Navigate to root - test can go wherever it needs from here
   await page.goto(`${getAppUrl()}/`, { waitUntil: "networkidle" });
+
+  if (process.env.E2E_TEST_EMAIL && process.env.E2E_TEST_PASSWORD) {
+    if (!(await isAuthenticated(page))) {
+      await signInTestUser(page);
+      await saveAuthState(page);
+    }
+  }
 
   return helper;
 }
 
 async function fetchConvexLogs(maxLines = 30): Promise<string> {
-  return new Promise(resolve => {
+  return await new Promise((resolve) => {
     const logs: string[] = [];
     const proc = spawn(
       "bunx",
       ["convex", "logs", "--history", String(maxLines), "--success"],
       {
         stdio: ["ignore", "pipe", "pipe"],
-        cwd: `${dirname(fileURLToPath(import.meta.url))}/..`,
+        cwd: join(__dirname, ".."),
       },
     );
 
     proc.stdout.on("data", (data: Buffer) => {
-      const text = data.toString();
-      for (const line of text.split("\n")) {
-        if (line.trim() && !line.startsWith("Watching logs")) {
-          logs.push(line);
-        }
+      for (const line of data.toString().split("\n")) {
+        if (line.trim() && !line.startsWith("Watching logs")) logs.push(line);
       }
     });
-
     proc.stderr.on("data", (data: Buffer) => {
       const text = data.toString();
-      if (
-        !text.includes("WebSocket") &&
-        !text.includes("Attempting reconnect")
-      ) {
+      if (!text.includes("WebSocket") && !text.includes("Attempting reconnect")) {
         logs.push(`[stderr] ${text.trim()}`);
       }
     });
 
     const timeout = setTimeout(() => {
       proc.kill("SIGTERM");
-      resolve(logs.length > 0 ? logs.join("\n") : "(No recent log entries)");
+      resolve(logs.length ? logs.join("\n") : "(No recent log entries)");
     }, 5000);
 
     proc.on("close", () => {
       clearTimeout(timeout);
-      resolve(logs.length > 0 ? logs.join("\n") : "(No recent log entries)");
+      resolve(logs.length ? logs.join("\n") : "(No recent log entries)");
     });
-
     proc.on("error", () => {
       clearTimeout(timeout);
       resolve("(Failed to fetch Convex logs)");
@@ -369,45 +307,43 @@ export async function runTest(
   testName: string,
   testFn: (helper: PageHelper) => Promise<void>,
 ): Promise<void> {
-  console.log(`\n🧪 Running: ${testName}\n`);
-
+  console.log(`\nRunning: ${testName}\n`);
   const helper = await createPageHelper();
 
   try {
     await testFn(helper);
-    console.log(`\n✅ ${testName} PASSED\n`);
+    console.log(`\n${testName} PASSED\n`);
   } catch (error) {
-    console.error(`\n❌ ${testName} FAILED\n`);
+    console.error(`\n${testName} FAILED\n`);
     console.error("Error:", error instanceof Error ? error.message : error);
-
     try {
       await helper.screenshot(`error-${Date.now()}.png`);
       await helper.printDebugInfo();
-
-      console.log("\n🔧 Convex Backend Logs:");
-      console.log("─".repeat(60));
-      const convexLogs = await fetchConvexLogs();
-      console.log(convexLogs);
-      console.log("─".repeat(60));
+      console.log("\nConvex Backend Logs:");
+      console.log(await fetchConvexLogs());
     } catch (debugError) {
       console.error("Failed to capture debug info:", debugError);
     }
-
     throw error;
   } finally {
     try {
       await saveAuthState(helper.page);
-    } catch {}
+    } catch {
+      // Ignore local state persistence failures during cleanup.
+    }
     await helper.close();
   }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  (async () => {
-    console.log("Setting up test user authentication...");
-    const helper = await createPageHelper();
-    console.log("Test user is ready!");
-    await helper.printDebugInfo();
-    await helper.close();
-  })().catch(console.error);
+  createPageHelper()
+    .then(async (helper) => {
+      console.log("Canonical browser helper initialized.");
+      await helper.printDebugInfo();
+      await helper.close();
+    })
+    .catch((error) => {
+      console.error(error);
+      process.exit(1);
+    });
 }
