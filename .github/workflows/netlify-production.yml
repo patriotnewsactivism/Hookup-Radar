@@ -20,35 +20,100 @@ jobs:
     env:
       NETLIFY_AUTH_TOKEN_PRIMARY: ${{ secrets.NETLIFY_AUTH_TOKEN }}
       NETLIFY_AUTH_TOKEN_ALT: ${{ secrets.NETLIFY_TOKEN }}
+      E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+      E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
 
       - name: Validate production configuration
         shell: bash
         run: |
           set -euo pipefail
-          test -n "${VITE_CONVEX_URL:-}" || { echo "::error::Missing VITE_CONVEX_URL repository/org secret or variable"; exit 2; }
+          [[ "${GITHUB_REF}" == "refs/heads/main" ]] || { echo "::error::Production deploys must run from main"; exit 2; }
+          test -n "${VITE_CONVEX_URL:-}" || { echo "::error::Missing VITE_CONVEX_URL"; exit 3; }
+          test -n "${E2E_TEST_EMAIL:-}" || { echo "::error::Missing E2E_TEST_EMAIL"; exit 4; }
+          test -n "${E2E_TEST_PASSWORD:-}" || { echo "::error::Missing E2E_TEST_PASSWORD"; exit 5; }
           token="${NETLIFY_AUTH_TOKEN_PRIMARY:-}"
           if [[ -z "$token" ]]; then token="${NETLIFY_AUTH_TOKEN_ALT:-}"; fi
-          test -n "$token" || { echo "::error::Missing NETLIFY_AUTH_TOKEN (or NETLIFY_TOKEN) repository/org secret"; exit 3; }
+          test -n "$token" || { echo "::error::Missing NETLIFY_AUTH_TOKEN (or NETLIFY_TOKEN)"; exit 6; }
           echo "::add-mask::$token"
           echo "NETLIFY_AUTH_TOKEN=$token" >> "$GITHUB_ENV"
 
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund
+      - name: Reject preview/test backdoors in production source
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git grep -nE 'VITE_IS_PREVIEW|VIKTOR_SPACES_IS_PREVIEW|@test\.local' -- src convex scripts; then
+            echo "::error::Preview-only authentication marker detected in production source"
+            exit 7
+          fi
+
+      - name: Known exposed credential fingerprint
+        shell: bash
+        run: |
+          set -o pipefail
+          git log -p --all --format= | python3 scripts/check-known-credential-history.py
+
+      - name: Git history secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Biome check
+        run: bun run check
+
+      - name: Security regression tests
+        run: bun run test:unit
 
       - name: Build production frontend
-        run: npm run build
+        run: bun run build
+
+      - name: Install browser
+        run: bunx playwright install --with-deps chromium
+
+      - name: Start local production build
+        shell: bash
+        run: |
+          set -euo pipefail
+          bun run preview -- --host 127.0.0.1 > /tmp/surge-preview.log 2>&1 &
+          echo $! > /tmp/surge-preview.pid
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/surge-preview.log
+          exit 8
+
+      - name: Authenticated canonical acceptance test
+        env:
+          APP_URL: http://127.0.0.1:4173
+          REQUIRE_AUTH_E2E: "true"
+        run: bun run test:demo
+
+      - name: Stop local preview
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f /tmp/surge-preview.pid ]]; then kill "$(cat /tmp/surge-preview.pid)" || true; fi
+          cat /tmp/surge-preview.log || true
 
       - name: Deploy to Netlify production
         shell: bash
         run: |
           set -euo pipefail
-          npx --yes netlify-cli@latest deploy \
+          bunx netlify-cli@latest deploy \
             --dir=dist \
             --prod \
             --site="$NETLIFY_SITE_ID" \
@@ -70,4 +135,4 @@ jobs:
           done
           echo "::error::Netlify origin did not become healthy within the verification window."
           head -80 /tmp/surge-home.html || true
-          exit 4
+          exit 9

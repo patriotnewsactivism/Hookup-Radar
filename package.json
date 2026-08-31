@@ -18,6 +18,8 @@
     "test": "bun run --bun scripts/test.ts",
     "test:auth": "bun run --bun scripts/auth.ts",
     "test:demo": "bun run --bun scripts/demo-test.ts",
+    "test:unit": "bun test tests",
+    "ci": "bun run typecheck && bun run check && bun run test:unit && bun run build",
     "screenshot": "bun run --bun scripts/screenshot.ts",
     "env:get": "bunx convex env get",
     "env:list": "bunx convex env list"
@@ -84,7 +86,6 @@
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
-    "autoprefixer": "^10.4.23",
     "playwright": "^1.57.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.18",

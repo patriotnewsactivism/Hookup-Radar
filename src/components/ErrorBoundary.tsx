@@ -1,6 +1,5 @@
 import { AlertTriangle, RotateCcw } from "lucide-react";
-import { Component, type ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import { Component, type ErrorInfo, type ReactNode } from "react";
 
 interface Props {
   children: ReactNode;
@@ -8,54 +7,60 @@ interface Props {
 
 interface State {
   hasError: boolean;
-  error: Error | null;
+  incidentId: string | null;
+}
+
+function createIncidentId() {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return `incident-${Date.now().toString(36)}`;
+  }
 }
 
 class ErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
-    super(props);
-    this.state = { hasError: false, error: null };
+  state: State = { hasError: false, incidentId: null };
+
+  static getDerivedStateFromError(): State {
+    return { hasError: true, incidentId: createIncidentId() };
   }
 
-  static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    // Keep diagnostic details out of rendered UI. Console output is available to
+    // operators during development and can be replaced by protected telemetry.
+    console.error("Unhandled application error", {
+      incidentId: this.state.incidentId,
+      error,
+      componentStack: info.componentStack,
+    });
   }
 
   render() {
-    if (this.state.hasError) {
-      return (
-        <div className="flex items-center justify-center min-h-screen p-8 bg-background">
-          <div className="flex flex-col items-center w-full max-w-2xl p-8">
-            <AlertTriangle
-              size={48}
-              className="text-destructive mb-6 flex-shrink-0"
-            />
+    if (!this.state.hasError) return this.props.children;
 
-            <h2 className="text-xl mb-4">An unexpected error occurred.</h2>
-
-            <div className="p-4 w-full rounded bg-muted overflow-auto mb-6">
-              <pre className="text-sm text-muted-foreground whitespace-break-spaces">
-                {this.state.error?.stack}
-              </pre>
-            </div>
-
-            <button
-              onClick={() => window.location.reload()}
-              className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg",
-                "bg-primary text-primary-foreground",
-                "hover:opacity-90 cursor-pointer",
-              )}
-            >
-              <RotateCcw size={16} />
-              Reload Page
-            </button>
-          </div>
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-8">
+        <div className="flex w-full max-w-lg flex-col items-center text-center">
+          <AlertTriangle size={48} className="mb-6 flex-shrink-0 text-destructive" />
+          <h2 className="mb-2 text-xl font-semibold">Something went wrong.</h2>
+          <p className="mb-5 text-sm text-muted-foreground">
+            Reload the app and try again. If the problem continues, include the incident ID below when reporting it.
+          </p>
+          {this.state.incidentId && (
+            <code className="mb-6 rounded bg-muted px-3 py-2 text-xs text-muted-foreground">
+              {this.state.incidentId}
+            </code>
+          )}
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-4 py-2 text-primary-foreground hover:opacity-90"
+          >
+            <RotateCcw size={16} /> Reload Page
+          </button>
         </div>
-      );
-    }
-
-    return this.props.children;
+      </div>
+    );
   }
 }
 

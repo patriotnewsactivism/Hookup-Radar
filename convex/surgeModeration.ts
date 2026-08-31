@@ -1,184 +1,136 @@
-// convex/surgeModeration.ts
-// ─────────────────────────────────────────────────────────────
-//  Admin moderation backend for Surge / Hookup-Radar
-//  Handles report management, strikes, bans, and spot approvals.
-//  All mutations require the caller to be an admin (is_verified check
-//  or a dedicated admin role — extend as needed).
-// ─────────────────────────────────────────────────────────────
-
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { profileId, requireModerator } from "./security";
 
-// ── Helper: assert caller is admin ───────────────────────────
-async function requireAdmin(ctx: any) {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) throw new Error("Unauthenticated");
-  const me = await ctx.db
+async function findProfileByIdentity(ctx: any, identity: string) {
+  const byAuthId = await ctx.db
     .query("surge_users")
-    .withIndex("by_auth_id", (q: any) => q.eq("auth_id", userId))
+    .withIndex("by_auth_id", (q: any) => q.eq("auth_id", identity))
     .first();
-  // For now: admin = is_verified. Replace with a proper role check as needed.
-  if (!me?.is_verified) throw new Error("Not authorized");
-  return me;
+  if (byAuthId) return byAuthId;
+
+  const profiles = await ctx.db.query("surge_users").collect();
+  return profiles.find((profile: any) => profile._id.toString() === identity) ?? null;
 }
 
-// ════════════════════════════════════════════════════════════
-//  REPORTS
-// ════════════════════════════════════════════════════════════
-
-// List all pending reports (admin only)
 export const listReports = query({
-  args: {
-    status: v.optional(v.string()), // "pending" | "resolved" | "dismissed"
-  },
+  args: { status: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
-
+    await requireModerator(ctx);
     const reports = await ctx.db.query("surge_reports").collect();
     const filtered = args.status
-      ? reports.filter((r) => r.status === args.status)
+      ? reports.filter((report) => report.status === args.status)
       : reports;
 
-    // Hydrate reporter and reported user info
     const hydrated = await Promise.all(
-      filtered.map(async (r) => {
-        const reporter = await ctx.db
-          .query("surge_users")
-          .withIndex("by_auth_id", (q: any) => q.eq("auth_id", r.reporter_id))
-          .first();
-        const reported = await ctx.db
-          .query("surge_users")
-          .withIndex("by_auth_id", (q: any) => q.eq("auth_id", r.reported_id))
-          .first();
+      filtered.map(async (report) => {
+        const reporter = await findProfileByIdentity(ctx, report.reporter_id);
+        const reported = await findProfileByIdentity(ctx, report.reported_id);
         return {
-          ...r,
-          id: r._id,
+          ...report,
+          id: report._id,
           reporter_name: reporter?.display_name ?? "Unknown",
           reporter_username: reporter?.username ?? "?",
           reported_name: reported?.display_name ?? "Unknown",
           reported_username: reported?.username ?? "?",
           reported_photo: reported?.photo_url ?? "",
         };
-      })
+      }),
     );
 
-    // Newest first
-    return hydrated.sort(
-      (a, b) =>
-        new Date(b._creationTime).getTime() - new Date(a._creationTime).getTime()
-    );
+    return hydrated.sort((a, b) => b._creationTime - a._creationTime);
   },
 });
 
-// Resolve a report (mark as resolved or dismissed)
 export const resolveReport = mutation({
   args: {
     report_id: v.id("surge_reports"),
-    status:    v.string(), // "resolved" | "dismissed"
+    status: v.union(v.literal("resolved"), v.literal("dismissed")),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireModerator(ctx);
     await ctx.db.patch(args.report_id, { status: args.status });
   },
 });
 
-// ════════════════════════════════════════════════════════════
-//  STRIKES & BANS
-// ════════════════════════════════════════════════════════════
-
-// Issue a strike or ban to a user
 export const issueStrike = mutation({
   args: {
-    user_id:   v.string(),              // surge_users auth_id
-    reason:    v.string(),
+    user_id: v.string(),
+    reason: v.string(),
     report_id: v.optional(v.id("surge_reports")),
-    is_ban:    v.boolean(),
-    expires_at: v.optional(v.string()), // ISO string or undefined = permanent
+    is_ban: v.boolean(),
+    expires_at: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const admin = await requireAdmin(ctx);
+    const moderator = await requireModerator(ctx);
+    const target = await findProfileByIdentity(ctx, args.user_id);
+    if (!target) throw new Error("User not found");
+    if (target.role === "admin") throw new Error("Administrators cannot be moderated here");
+
+    const reason = args.reason.trim();
+    if (!reason || reason.length > 1000) throw new Error("Invalid reason");
 
     await ctx.db.insert("surge_strikes", {
-      user_id:    args.user_id,
-      issued_by:  admin._id.toString(),
-      reason:     args.reason,
-      report_id:  args.report_id,
-      is_ban:     args.is_ban,
+      user_id: target.auth_id,
+      issued_by: profileId(moderator),
+      reason,
+      report_id: args.report_id,
+      is_ban: args.is_ban,
       expires_at: args.expires_at,
       created_at: new Date().toISOString(),
     });
 
-    // If it's a ban, hide the user from map and grid immediately
     if (args.is_ban) {
-      const target = await ctx.db
-        .query("surge_users")
-        .withIndex("by_auth_id", (q: any) => q.eq("auth_id", args.user_id))
-        .first();
-      if (target) {
-        await ctx.db.patch(target._id, { show_on_map: false, is_online: false });
-      }
+      await ctx.db.patch(target._id, { show_on_map: false, is_online: false });
     }
 
-    // Notify the user
-    const target = await ctx.db
-      .query("surge_users")
-      .withIndex("by_auth_id", (q: any) => q.eq("auth_id", args.user_id))
-      .first();
-    if (target) {
-      await ctx.db.insert("surge_notifications", {
-        user_id:    target._id.toString(),
-        type:       args.is_ban ? "ban" : "strike",
-        title:      args.is_ban ? "🚫 Account Suspended" : "⚠️ Account Warning",
-        body:       args.is_ban
-          ? `Your account has been suspended: ${args.reason}`
-          : `You received a warning: ${args.reason}`,
-        is_read:    false,
-        created_at: new Date().toISOString(),
-      });
-    }
+    await ctx.db.insert("surge_notifications", {
+      user_id: profileId(target),
+      type: args.is_ban ? "ban" : "strike",
+      title: args.is_ban ? "Account suspended" : "Account warning",
+      body: args.is_ban
+        ? `Your account has been suspended: ${reason}`
+        : `You received a warning: ${reason}`,
+      is_read: false,
+      created_at: new Date().toISOString(),
+    });
   },
 });
 
-// List strikes for a user
 export const listStrikes = query({
   args: { user_id: v.string() },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireModerator(ctx);
+    const target = await findProfileByIdentity(ctx, args.user_id);
+    if (!target) return [];
     const strikes = await ctx.db
       .query("surge_strikes")
-      .withIndex("by_user", (q: any) => q.eq("user_id", args.user_id))
+      .withIndex("by_user", (q: any) => q.eq("user_id", target.auth_id))
       .order("desc")
       .collect();
-    return strikes.map((s) => ({ ...s, id: s._id }));
+    return strikes.map((strike) => ({ ...strike, id: strike._id }));
   },
 });
 
-// ════════════════════════════════════════════════════════════
-//  SPOT APPROVALS
-// ════════════════════════════════════════════════════════════
-
-// List all pending spots awaiting approval
 export const listPendingSpots = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
+    await requireModerator(ctx);
     const spots = await ctx.db
       .query("surge_spots")
       .withIndex("by_approved", (q: any) => q.eq("is_approved", false))
       .collect();
-    return spots.map((s) => ({ ...s, id: s._id }));
+    return spots.map((spot) => ({ ...spot, id: spot._id }));
   },
 });
 
-// Approve or reject a spot
 export const reviewSpot = mutation({
   args: {
-    spot_id:  v.id("surge_spots"),
+    spot_id: v.id("surge_spots"),
     approved: v.boolean(),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    await requireModerator(ctx);
     if (args.approved) {
       await ctx.db.patch(args.spot_id, { is_approved: true });
     } else {
@@ -187,15 +139,10 @@ export const reviewSpot = mutation({
   },
 });
 
-// ════════════════════════════════════════════════════════════
-//  STATS — admin dashboard overview
-// ════════════════════════════════════════════════════════════
-
 export const getStats = query({
   args: {},
   handler: async (ctx) => {
-    await requireAdmin(ctx);
-
+    await requireModerator(ctx);
     const [users, reports, spots, strikes] = await Promise.all([
       ctx.db.query("surge_users").collect(),
       ctx.db.query("surge_reports").collect(),
@@ -203,18 +150,13 @@ export const getStats = query({
       ctx.db.query("surge_strikes").collect(),
     ]);
 
-    const onlineUsers   = users.filter((u) => u.is_online).length;
-    const pendingReports = reports.filter((r) => r.status === "pending").length;
-    const pendingSpots  = spots.filter((s) => !s.is_approved).length;
-    const activeBans    = strikes.filter((s) => s.is_ban).length;
-
     return {
-      total_users:     users.length,
-      online_users:    onlineUsers,
-      pending_reports: pendingReports,
-      pending_spots:   pendingSpots,
-      active_bans:     activeBans,
-      total_strikes:   strikes.length,
+      total_users: users.length,
+      online_users: users.filter((user) => user.is_online).length,
+      pending_reports: reports.filter((report) => report.status === "pending").length,
+      pending_spots: spots.filter((spot) => !spot.is_approved).length,
+      active_bans: strikes.filter((strike) => strike.is_ban).length,
+      total_strikes: strikes.length,
     };
   },
 });

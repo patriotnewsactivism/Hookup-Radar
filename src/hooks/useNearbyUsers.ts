@@ -1,12 +1,11 @@
-// src/hooks/useNearbyUsers.ts  —  Enhanced with body_type, ethnicity, verified_only filters
 import { useMemo } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { SurgeUser, Orientation } from '../types';
-import { getBotsForArea, BOT_IDS_PREFIX } from '../lib/bots';
+import { getBotsForArea } from '../lib/bots';
 
 function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 20902231; // feet
+  const R = 20902231;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
@@ -18,17 +17,17 @@ function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 }
 
 export interface Filters {
-  orientation?:    string[];
-  looking_for?:    string[];
-  kinks?:          string[];
-  gender?:         string[];
-  body_type?:      string[];   // NEW
-  ethnicity?:      string[];   // NEW
-  max_distance?:   number;     // feet
-  min_age?:        number;
-  max_age?:        number;
-  online_only?:    boolean;
-  verified_only?:  boolean;    // NEW
+  orientation?: string[];
+  looking_for?: string[];
+  kinks?: string[];
+  gender?: string[];
+  body_type?: string[];
+  ethnicity?: string[];
+  max_distance?: number;
+  min_age?: number;
+  max_age?: number;
+  online_only?: boolean;
+  verified_only?: boolean;
 }
 
 export function useNearbyUsers(
@@ -39,14 +38,16 @@ export function useNearbyUsers(
 ) {
   const rawUsers = useQuery(
     api.surgeUsers.getNearby,
-    myLat && myLng
+    myLat !== null && myLng !== null
       ? {
-          lat:          myLat,
-          lng:          myLng,
-          radius:       0.15,
-          onlineOnly:   filters?.online_only,
-          minAge:       filters?.min_age,
-          maxAge:       filters?.max_age,
+          // Kept for the compatibility validator. The backend ignores these
+          // coordinates and derives the origin from the authenticated profile.
+          lat: myLat,
+          lng: myLng,
+          radius: 0.15,
+          onlineOnly: filters?.online_only,
+          minAge: filters?.min_age,
+          maxAge: filters?.max_age,
         }
       : 'skip'
   );
@@ -54,45 +55,48 @@ export function useNearbyUsers(
   const loading = rawUsers === undefined;
 
   const users = useMemo(() => {
-    if (!rawUsers || !myLat || !myLng) return [];
+    if (!rawUsers || myLat === null || myLng === null) return [];
 
-    let results = (rawUsers as SurgeUser[]).map((u) => ({
-      ...u,
-      distance: haversineDistance(myLat, myLng, u.lat, u.lng),
+    let results = (rawUsers as SurgeUser[]).map((user) => ({
+      ...user,
+      // Prefer the distance calculated from exact coordinates on the server.
+      // Public coordinates are intentionally coarse and must not be used to
+      // reconstruct a user's precise position.
+      distance:
+        typeof user.distance === 'number'
+          ? user.distance
+          : haversineDistance(myLat, myLng, user.lat, user.lng),
     }));
 
-    // ── Client-side filters ────────────────────────────────
     if (filters?.max_distance) {
-      results = results.filter((u) => (u.distance ?? 0) <= filters.max_distance!);
+      results = results.filter((user) => (user.distance ?? 0) <= filters.max_distance!);
     }
     if (filters?.orientation?.length) {
-      results = results.filter((u) => filters.orientation!.includes(u.orientation));
+      results = results.filter((user) => filters.orientation!.includes(user.orientation));
     }
     if (filters?.gender?.length) {
-      results = results.filter((u) => filters.gender!.includes(u.gender));
+      results = results.filter((user) => filters.gender!.includes(user.gender));
     }
     if (filters?.looking_for?.length) {
-      results = results.filter((u) =>
-        u.looking_for?.some((lf) => filters.looking_for!.includes(lf))
+      results = results.filter((user) =>
+        user.looking_for?.some((value) => filters.looking_for!.includes(value))
       );
     }
     if (filters?.kinks?.length) {
-      results = results.filter((u) =>
-        u.kinks?.some((k) => filters.kinks!.includes(k))
+      results = results.filter((user) =>
+        user.kinks?.some((value) => filters.kinks!.includes(value))
       );
     }
-    // NEW filters
     if (filters?.body_type?.length) {
-      results = results.filter((u) => filters.body_type!.includes(u.body_type));
+      results = results.filter((user) => filters.body_type!.includes(user.body_type));
     }
     if (filters?.ethnicity?.length) {
-      results = results.filter((u) => filters.ethnicity!.includes(u.ethnicity));
+      results = results.filter((user) => filters.ethnicity!.includes(user.ethnicity));
     }
     if (filters?.verified_only) {
-      results = results.filter((u) => u.is_verified);
+      results = results.filter((user) => user.is_verified);
     }
 
-    // ── Inject bots ───────────────────────────────────────
     const bots = getBotsForArea(myLat, myLng, myOrientation).map((bot) => ({
       ...bot,
       distance: haversineDistance(myLat, myLng, bot.lat, bot.lng),
@@ -110,11 +114,9 @@ function interleave(real: SurgeUser[], bots: SurgeUser[], every: number): SurgeU
   if (bots.length === 0) return real;
   const result: SurgeUser[] = [];
   let botIdx = 0;
-  real.forEach((u, i) => {
-    result.push(u);
-    if ((i + 1) % every === 0 && botIdx < bots.length) {
-      result.push(bots[botIdx++]);
-    }
+  real.forEach((user, index) => {
+    result.push(user);
+    if ((index + 1) % every === 0 && botIdx < bots.length) result.push(bots[botIdx++]);
   });
   while (botIdx < bots.length) result.push(bots[botIdx++]);
   return result;

@@ -1,15 +1,9 @@
-// convex/schema.ts  —  Full updated schema for Surge / Hookup-Radar
-// Adds: surge_notifications, surge_strikes
-// All existing tables are preserved exactly as before.
-
 import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 const schema = defineSchema({
   ...authTables,
-
-  // ── Existing tables (unchanged) ────────────────────────────
 
   surge_users: defineTable({
     auth_id:           v.string(),
@@ -39,6 +33,7 @@ const schema = defineSchema({
     is_online:         v.boolean(),
     is_anonymous:      v.boolean(),
     is_verified:       v.boolean(),
+    role:              v.optional(v.union(v.literal("user"), v.literal("moderator"), v.literal("admin"))),
     is_premium:        v.boolean(),
     premium_until:     v.optional(v.string()),
     free_trial_until:  v.optional(v.string()),
@@ -78,13 +73,13 @@ const schema = defineSchema({
   }),
 
   surge_ratings: defineTable({
-    rater_id:         v.string(),
-    rated_user_id:    v.string(),
-    meetup_happened:  v.boolean(),
+    rater_id:          v.string(),
+    rated_user_id:     v.string(),
+    meetup_happened:   v.boolean(),
     reliability_score: v.number(),
-    vibe_score:       v.optional(v.number()),
-    tags:             v.array(v.string()),
-    comment:          v.optional(v.string()),
+    vibe_score:        v.optional(v.number()),
+    tags:              v.array(v.string()),
+    comment:           v.optional(v.string()),
   }).index("by_rated_user", ["rated_user_id"]),
 
   surge_spots: defineTable({
@@ -117,7 +112,7 @@ const schema = defineSchema({
     event_id: v.id("surge_spot_events"),
     user_id:  v.string(),
   })
-    .index("by_event",      ["event_id"])
+    .index("by_event", ["event_id"])
     .index("by_user_event", ["user_id", "event_id"]),
 
   surge_spot_messages: defineTable({
@@ -138,8 +133,8 @@ const schema = defineSchema({
     sort_order:       v.number(),
     created_at:       v.string(),
   })
-    .index("by_user",         ["user_id", "created_at"])
-    .index("by_album",        ["album_id", "sort_order"])
+    .index("by_user", ["user_id", "created_at"])
+    .index("by_album", ["album_id", "sort_order"])
     .index("by_user_profile", ["user_id", "is_profile_photo"]),
 
   surge_albums: defineTable({
@@ -164,29 +159,26 @@ const schema = defineSchema({
     .index("by_user", ["user_id"])
     .index("by_code", ["code"]),
 
-  // ── NEW: Notifications ─────────────────────────────────────
-  // Types: "message" | "profile_view" | "nearby" | "event" | "strike" | "ban"
   surge_notifications: defineTable({
-    user_id:      v.string(),               // recipient surge_users._id string
+    user_id:      v.string(),
     type:         v.string(),
     title:        v.string(),
     body:         v.string(),
     from_user_id: v.optional(v.string()),
-    entity_id:    v.optional(v.string()),   // related message / event / spot id
+    entity_id:    v.optional(v.string()),
     is_read:      v.boolean(),
     created_at:   v.string(),
   })
-    .index("by_user",      ["user_id", "created_at"])
+    .index("by_user", ["user_id", "created_at"])
     .index("by_user_read", ["user_id", "is_read"]),
 
-  // ── NEW: Strikes & Bans ────────────────────────────────────
   surge_strikes: defineTable({
-    user_id:    v.string(),                 // target surge_users auth_id
-    issued_by:  v.string(),                 // admin surge_users._id string
+    user_id:    v.string(),
+    issued_by:  v.string(),
     reason:     v.string(),
     report_id:  v.optional(v.id("surge_reports")),
     is_ban:     v.boolean(),
-    expires_at: v.optional(v.string()),     // undefined = permanent
+    expires_at: v.optional(v.string()),
     created_at: v.string(),
   }).index("by_user", ["user_id", "created_at"]),
 });

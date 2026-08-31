@@ -1,53 +1,99 @@
-/**
- * Viktor Tools - Call any Viktor SDK function from your Convex app.
- *
- * Available tools include:
- * - quick_ai_search: AI-powered web search with summarized results
- * - text2im: Generate images from text prompts
- * - file_to_markdown: Convert PDF/DOCX/XLSX files to markdown
- * - And all MCP integration tools configured for your user
- *
- * To add a new tool, first test it to see the response shape.
- */
 import { v } from "convex/values";
 import { action } from "./_generated/server";
 
 declare const process: { env: Record<string, string | undefined> };
 
-const VIKTOR_API_URL = process.env.VIKTOR_SPACES_API_URL!;
-const PROJECT_NAME = process.env.VIKTOR_SPACES_PROJECT_NAME!;
-const PROJECT_SECRET = process.env.VIKTOR_SPACES_PROJECT_SECRET!;
+const VIKTOR_API_URL = process.env.VIKTOR_SPACES_API_URL;
+const PROJECT_NAME = process.env.VIKTOR_SPACES_PROJECT_NAME;
+const PROJECT_SECRET = process.env.VIKTOR_SPACES_PROJECT_SECRET;
+const ENABLED = process.env.VIKTOR_SPACES_ENABLED === "true";
+const TIMEOUT_MS = 15_000;
 
-async function callTool<T>(role: string, args: Record<string, unknown> = {}): Promise<T> {
-  const response = await fetch(`${VIKTOR_API_URL}/api/viktor-spaces/tools/call`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      project_name: PROJECT_NAME,
-      project_secret: PROJECT_SECRET,
-      role,
-      arguments: args,
-    }),
-  });
+function requireConfiguration() {
+  if (!ENABLED) throw new Error("External AI tools are disabled");
+  if (!VIKTOR_API_URL || !PROJECT_NAME || !PROJECT_SECRET) {
+    throw new Error("External AI tools are not configured");
+  }
+  return { apiUrl: VIKTOR_API_URL, projectName: PROJECT_NAME, projectSecret: PROJECT_SECRET };
+}
 
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+async function requireAuthenticatedAction(ctx: any) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) throw new Error("Unauthenticated");
+  return identity;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+async function callTool(role: string, args: Record<string, unknown>): Promise<unknown> {
+  const config = requireConfiguration();
+  const startedAt = Date.now();
+  let lastStatus = 0;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    try {
+      const response = await fetch(`${config.apiUrl}/api/viktor-spaces/tools/call`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project_name: config.projectName,
+          project_secret: config.projectSecret,
+          role,
+          arguments: args,
+        }),
+        signal: controller.signal,
+      });
+      lastStatus = response.status;
+
+      if (!response.ok) {
+        if (attempt === 0 && (response.status === 429 || response.status >= 500)) continue;
+        throw new Error(`External AI provider request failed (${response.status})`);
+      }
+
+      const json: unknown = await response.json();
+      if (!isRecord(json) || json.success !== true || !("result" in json)) {
+        throw new Error("External AI provider returned an invalid response");
+      }
+
+      console.info("viktor_tool_call", {
+        role,
+        latency_ms: Date.now() - startedAt,
+        status: response.status,
+      });
+      return json.result;
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        if (attempt === 0) continue;
+        throw new Error("External AI provider timed out");
+      }
+      if (attempt === 0 && lastStatus >= 500) continue;
+      throw error instanceof Error ? error : new Error("External AI provider request failed");
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
-  const json = await response.json();
-  if (!json.success) {
-    throw new Error(json.error ?? "Tool call failed");
-  }
-  return json.result as T;
+  throw new Error("External AI provider request failed");
 }
 
 export const quickAiSearch = action({
   args: { query: v.string() },
   returns: v.string(),
-  handler: async (_ctx, { query }) => {
-    const result = await callTool<{ search_response: string }>("quick_ai_search", {
-      search_question: query,
-    });
+  handler: async (ctx, { query }) => {
+    await requireAuthenticatedAction(ctx);
+    const normalized = query.trim();
+    if (!normalized || normalized.length > 2000) throw new Error("Invalid search query");
+
+    // Calling this user-initiated action is the consent boundary for sending the
+    // supplied query to the configured external provider.
+    const result = await callTool("quick_ai_search", { search_question: normalized });
+    if (!isRecord(result) || typeof result.search_response !== "string") {
+      throw new Error("External AI search returned an invalid response");
+    }
     return result.search_response;
   },
 });
@@ -66,11 +112,18 @@ export const generateImage = action({
     ),
   },
   returns: v.string(),
-  handler: async (_ctx, { prompt, aspectRatio }) => {
-    const result = await callTool<{ response_text: string }>("text2im", {
-      prompt,
+  handler: async (ctx, { prompt, aspectRatio }) => {
+    await requireAuthenticatedAction(ctx);
+    const normalized = prompt.trim();
+    if (!normalized || normalized.length > 4000) throw new Error("Invalid image prompt");
+
+    const result = await callTool("text2im", {
+      prompt: normalized,
       aspect_ratio: aspectRatio ?? "1:1",
     });
+    if (!isRecord(result) || typeof result.response_text !== "string") {
+      throw new Error("External image provider returned an invalid response");
+    }
     return result.response_text;
   },
 });
