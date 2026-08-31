@@ -2,10 +2,27 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { mutation, query } from "./_generated/server";
 import { profileId, requireSurgeUser } from "./security";
 
+function referencesIdentity(value: string | undefined, id: string, authId: string) {
+  return value === id || value === authId;
+}
+
 async function relatedData(ctx: any, profile: any) {
   const id = profileId(profile);
   const authId = profile.auth_id;
-  const [messages, reports, ratings, spots, events, rsvps, spotMessages, media, albums, referrals, notifications, strikes] = await Promise.all([
+  const [
+    messages,
+    reports,
+    ratings,
+    spots,
+    events,
+    rsvps,
+    spotMessages,
+    media,
+    albums,
+    referrals,
+    notifications,
+    strikes,
+  ] = await Promise.all([
     ctx.db.query("surge_messages").collect(),
     ctx.db.query("surge_reports").collect(),
     ctx.db.query("surge_ratings").collect(),
@@ -23,19 +40,56 @@ async function relatedData(ctx: any, profile: any) {
   return {
     id,
     authId,
-    messages: messages.filter((item: any) => item.sender_id === id || item.receiver_id === id),
-    createdReports: reports.filter((item: any) => item.reporter_id === id || item.reporter_id === authId),
-    ratingsGiven: ratings.filter((item: any) => item.rater_id === id || item.rater_id === authId),
-    spots: spots.filter((item: any) => item.submitted_by === id || item.submitted_by === authId),
-    events: events.filter((item: any) => item.host_id === id || item.host_id === authId),
-    rsvps: rsvps.filter((item: any) => item.user_id === id || item.user_id === authId),
-    spotMessages: spotMessages.filter((item: any) => item.user_id === id || item.user_id === authId),
-    media: media.filter((item: any) => item.user_id === id || item.user_id === authId),
-    albums: albums.filter((item: any) => item.user_id === id || item.user_id === authId),
-    referrals: referrals.filter((item: any) => item.user_id === id || item.user_id === authId),
-    notifications: notifications.filter((item: any) => item.user_id === id),
-    strikes: strikes.filter((item: any) => item.user_id === authId),
+    messages: messages.filter(
+      (item: any) =>
+        referencesIdentity(item.sender_id, id, authId) ||
+        referencesIdentity(item.receiver_id, id, authId),
+    ),
+    reports: reports.filter(
+      (item: any) =>
+        referencesIdentity(item.reporter_id, id, authId) ||
+        referencesIdentity(item.reported_id, id, authId),
+    ),
+    ratings: ratings.filter(
+      (item: any) =>
+        referencesIdentity(item.rater_id, id, authId) ||
+        referencesIdentity(item.rated_user_id, id, authId),
+    ),
+    spots: spots.filter((item: any) =>
+      referencesIdentity(item.submitted_by, id, authId),
+    ),
+    events: events.filter((item: any) =>
+      referencesIdentity(item.host_id, id, authId),
+    ),
+    rsvps: rsvps.filter((item: any) =>
+      referencesIdentity(item.user_id, id, authId),
+    ),
+    spotMessages: spotMessages.filter((item: any) =>
+      referencesIdentity(item.user_id, id, authId),
+    ),
+    media: media.filter((item: any) =>
+      referencesIdentity(item.user_id, id, authId),
+    ),
+    albums: albums.filter((item: any) =>
+      referencesIdentity(item.user_id, id, authId),
+    ),
+    referrals: referrals.filter((item: any) =>
+      referencesIdentity(item.user_id, id, authId),
+    ),
+    notifications: notifications.filter(
+      (item: any) =>
+        referencesIdentity(item.user_id, id, authId) ||
+        referencesIdentity(item.from_user_id, id, authId),
+    ),
+    strikes: strikes.filter((item: any) =>
+      referencesIdentity(item.user_id, id, authId),
+    ),
   };
+}
+
+function exportMedia(item: any) {
+  const { storage_id: _storageId, ...safe } = item;
+  return safe;
 }
 
 export const exportAccountData = query({
@@ -47,13 +101,13 @@ export const exportAccountData = query({
       exported_at: new Date().toISOString(),
       profile,
       messages: data.messages,
-      reports_created: data.createdReports,
-      ratings_given: data.ratingsGiven,
+      reports_referencing_account: data.reports,
+      ratings_referencing_account: data.ratings,
       spots_submitted: data.spots,
       events_hosted: data.events,
       rsvps: data.rsvps,
       spot_messages: data.spotMessages,
-      media: data.media.map((item: any) => ({ ...item, storage_id: undefined })),
+      media: data.media.map(exportMedia),
       albums: data.albums,
       referrals: data.referrals,
       notifications: data.notifications,
@@ -67,6 +121,16 @@ export const exportAccountData = query({
   },
 });
 
+async function deleteEventWithRsvps(ctx: any, eventId: any) {
+  const eventRsvps = await ctx.db
+    .query("surge_spot_rsvps")
+    .withIndex("by_event", (q: any) => q.eq("event_id", eventId))
+    .collect();
+  for (const rsvp of eventRsvps) await ctx.db.delete(rsvp._id);
+  const event = await ctx.db.get(eventId);
+  if (event) await ctx.db.delete(eventId);
+}
+
 export const deleteAccount = mutation({
   args: {},
   handler: async (ctx) => {
@@ -75,32 +139,20 @@ export const deleteAccount = mutation({
     const profile = await requireSurgeUser(ctx);
     const data = await relatedData(ctx, profile);
 
-    // Delete owned storage objects before metadata.
     for (const item of data.media) {
       try {
         await ctx.storage.delete(item.storage_id);
       } catch {
-        // Continue graph cleanup even if the blob was already absent.
+        // Continue graph cleanup if a blob was already absent.
       }
     }
 
-    // Remove direct user-owned graph nodes.
-    const directDeletes = [
-      ...data.messages,
-      ...data.createdReports,
-      ...data.ratingsGiven,
-      ...data.events,
-      ...data.rsvps,
-      ...data.spotMessages,
-      ...data.media,
-      ...data.albums,
-      ...data.referrals,
-      ...data.notifications,
-      ...data.strikes,
-    ];
-    for (const item of directDeletes) await ctx.db.delete(item._id);
+    // Hosted events own RSVP children, including rows created by other users.
+    for (const event of data.events) {
+      await deleteEventWithRsvps(ctx, event._id);
+    }
 
-    // Delete user-submitted spots and cascade their event/chat/RSVP children.
+    // User-submitted spots own event/chat children.
     for (const spot of data.spots) {
       const childEvents = await ctx.db
         .query("surge_spot_events")
@@ -111,25 +163,54 @@ export const deleteAccount = mutation({
         .withIndex("by_spot", (q: any) => q.eq("spot_id", spot._id))
         .collect();
       for (const event of childEvents) {
-        const eventRsvps = await ctx.db
-          .query("surge_spot_rsvps")
-          .withIndex("by_event", (q: any) => q.eq("event_id", event._id))
-          .collect();
-        for (const rsvp of eventRsvps) await ctx.db.delete(rsvp._id);
-        await ctx.db.delete(event._id);
+        await deleteEventWithRsvps(ctx, event._id);
       }
-      for (const message of childMessages) await ctx.db.delete(message._id);
-      await ctx.db.delete(spot._id);
+      for (const message of childMessages) {
+        const current = await ctx.db.get(message._id);
+        if (current) await ctx.db.delete(message._id);
+      }
+      const currentSpot = await ctx.db.get(spot._id);
+      if (currentSpot) await ctx.db.delete(spot._id);
     }
 
-    // Remove references to the deleted identity from remaining records.
+    const directDeletes = [
+      ...data.messages,
+      ...data.reports,
+      ...data.ratings,
+      ...data.rsvps,
+      ...data.spotMessages,
+      ...data.media,
+      ...data.albums,
+      ...data.referrals,
+      ...data.notifications,
+      ...data.strikes,
+    ];
+    const deleted = new Set<string>();
+    for (const item of directDeletes) {
+      const key = item._id.toString();
+      if (deleted.has(key)) continue;
+      const current = await ctx.db.get(item._id);
+      if (current) await ctx.db.delete(item._id);
+      deleted.add(key);
+    }
+
     const allProfiles = await ctx.db.query("surge_users").collect();
     for (const other of allProfiles) {
       if (other._id === profile._id) continue;
-      const blocked = other.blocked_users.filter((value: string) => value !== data.id && value !== data.authId);
-      const favorites = other.favorite_users.filter((value: string) => value !== data.id && value !== data.authId);
-      if (blocked.length !== other.blocked_users.length || favorites.length !== other.favorite_users.length) {
-        await ctx.db.patch(other._id, { blocked_users: blocked, favorite_users: favorites });
+      const blocked = other.blocked_users.filter(
+        (value: string) => value !== data.id && value !== data.authId,
+      );
+      const favorites = other.favorite_users.filter(
+        (value: string) => value !== data.id && value !== data.authId,
+      );
+      if (
+        blocked.length !== other.blocked_users.length ||
+        favorites.length !== other.favorite_users.length
+      ) {
+        await ctx.db.patch(other._id, {
+          blocked_users: blocked,
+          favorite_users: favorites,
+        });
       }
     }
 
