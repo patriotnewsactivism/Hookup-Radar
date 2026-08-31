@@ -54,6 +54,12 @@ jobs:
             exit 7
           fi
 
+      - name: Known exposed credential fingerprint
+        shell: bash
+        run: |
+          set -o pipefail
+          git log -p --all --format= | python3 scripts/check-known-credential-history.py
+
       - name: Git history secret scan
         uses: gitleaks/gitleaks-action@v2
         env:
