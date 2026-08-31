@@ -13,15 +13,6 @@ export async function requireSurgeUser(ctx: any) {
   return profile;
 }
 
-export async function optionalSurgeUser(ctx: any) {
-  const authUserId = await getAuthUserId(ctx);
-  if (!authUserId) return null;
-  return await ctx.db
-    .query("surge_users")
-    .withIndex("by_auth_id", (q: any) => q.eq("auth_id", authUserId))
-    .first();
-}
-
 export function profileId(profile: any): string {
   return profile._id.toString();
 }
@@ -80,23 +71,21 @@ function coarseCoordinate(value: number): number {
 }
 
 export function toPublicProfile(user: any, distanceFeet?: number) {
-  const {
-    auth_id: _authId,
-    auth_email: _authEmail,
-    safe_contact_name: _safeContactName,
-    safe_contact_info: _safeContactInfo,
-    blocked_users: _blockedUsers,
-    favorite_users: _favoriteUsers,
-    lat,
-    lng,
-    ...publicFields
-  } = user;
+  const publicFields = { ...user };
+  delete publicFields.auth_id;
+  delete publicFields.auth_email;
+  delete publicFields.safe_contact_name;
+  delete publicFields.safe_contact_info;
+  delete publicFields.blocked_users;
+  delete publicFields.favorite_users;
+  delete publicFields.role;
+
+  publicFields.lat = coarseCoordinate(user.lat);
+  publicFields.lng = coarseCoordinate(user.lng);
 
   return {
     ...publicFields,
     id: user._id,
-    lat: coarseCoordinate(lat),
-    lng: coarseCoordinate(lng),
     ...(user.show_distance && distanceFeet !== undefined
       ? { distance: distanceFeet }
       : {}),
