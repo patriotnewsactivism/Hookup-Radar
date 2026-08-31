@@ -19,3 +19,18 @@ export function getTestUser(): TestUserCredentials {
     name: process.env.E2E_TEST_NAME?.trim() || "E2E Test User",
   };
 }
+
+// Compatibility view for older helpers. Getters defer environment access until
+// authentication is actually attempted, so unauthenticated tooling can import
+// this module without requiring test secrets.
+export const TEST_USER = {
+  get email() {
+    return getTestUser().email;
+  },
+  get password() {
+    return getTestUser().password;
+  },
+  get name() {
+    return getTestUser().name;
+  },
+};
