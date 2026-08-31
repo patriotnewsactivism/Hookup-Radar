@@ -1,52 +1,17 @@
-import { createAccount, retrieveAccount } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { Scrypt } from "lucia";
 import { internalAction } from "./_generated/server";
 
-const TEST_USER = {
-  email: "agent-3f43aa9d@test.local",
-  password: "dTpb6fo2hx6IKy14hZDxaFPMiF19osKz",
-  name: "Test Agent",
-} as const;
-
+// Kept as a compatibility stub so generated API imports remain valid until the
+// next Convex codegen. Test identities must be provisioned out-of-band with
+// runtime-only credentials and may not be seeded from committed source.
 export const seedTestUser = internalAction({
   args: {},
   returns: v.object({
     success: v.boolean(),
     message: v.string(),
   }),
-  handler: async ctx => {
-    try {
-      await retrieveAccount(ctx, {
-        provider: "test",
-        account: { id: TEST_USER.email },
-      });
-      return { success: true, message: "Test user already exists" };
-    } catch {
-      // User doesn't exist, create them
-    }
-
-    try {
-      const hashedPassword = await new Scrypt().hash(TEST_USER.password);
-      await createAccount(ctx, {
-        provider: "test",
-        account: {
-          id: TEST_USER.email,
-          secret: hashedPassword,
-        },
-        profile: {
-          email: TEST_USER.email,
-          name: TEST_USER.name,
-          emailVerificationTime: Date.now(),
-        },
-        shouldLinkViaEmail: false,
-      });
-      return { success: true, message: "Test user created successfully" };
-    } catch (error) {
-      return {
-        success: false,
-        message: `Failed to create test user: ${error}`,
-      };
-    }
-  },
+  handler: async () => ({
+    success: false,
+    message: "Committed test-user seeding is disabled",
+  }),
 });
