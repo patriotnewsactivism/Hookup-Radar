@@ -1,56 +1,69 @@
-import { runTest } from "./auth";
+import { chromium } from "playwright";
 
-runTest("Demo Test", async helper => {
-  const { page } = helper;
+const appUrl = process.env.APP_URL || "http://127.0.0.1:4173";
+const email = process.env.E2E_TEST_EMAIL?.trim();
+const password = process.env.E2E_TEST_PASSWORD?.trim();
+const requireAuthenticated = process.env.REQUIRE_AUTH_E2E === "true";
 
-  console.log("📍 Testing /dashboard route...");
-  await helper.goto("/dashboard");
+async function main() {
+  const browser = await chromium.launch();
+  const page = await browser.newPage();
 
-  await helper.screenshot("demo-dashboard.png");
+  try {
+    await page.goto(appUrl, { waitUntil: "networkidle" });
+    const landing = await page.locator("body").innerText();
+    if (!landing.includes("SURGE") || !landing.includes("Get Started Free") || !landing.includes("Sign In")) {
+      throw new Error("Canonical landing state did not render");
+    }
 
-  const hasWelcome = await page
-    .locator("text=Welcome")
-    .isVisible()
-    .catch(() => false);
-  const isOnDashboard = page.url().includes("/dashboard");
+    await page.getByRole("button", { name: "Sign In", exact: true }).first().click();
+    await page.locator('input[type="email"]').waitFor({ state: "visible" });
+    await page.locator('input[type="password"]').waitFor({ state: "visible" });
 
-  console.log(`   ✓ Welcome message: ${hasWelcome}`);
-  console.log(`   ✓ On dashboard: ${isOnDashboard}`);
-  console.log(`   ✓ URL: ${page.url()}`);
+    if (!email || !password) {
+      if (requireAuthenticated) {
+        throw new Error("Authenticated E2E is required but E2E_TEST_EMAIL/E2E_TEST_PASSWORD are missing");
+      }
+      console.log("Canonical unauthenticated shell passed; authenticated E2E skipped because runtime credentials are absent.");
+      return;
+    }
 
-  if (!hasWelcome || !isOnDashboard) {
-    throw new Error("Dashboard not working");
+    await page.locator('input[type="email"]').fill(email);
+    await page.locator('input[type="password"]').fill(password);
+    await page.getByRole("button", { name: "Sign In", exact: true }).last().click();
+
+    await page.waitForFunction(() => {
+      const text = document.body.innerText;
+      return text.includes("Explore") || text.includes("Let's set you up") || text.includes("Something went wrong");
+    }, undefined, { timeout: 15_000 });
+
+    const authenticatedState = await page.locator("body").innerText();
+    if (authenticatedState.includes("Something went wrong")) {
+      throw new Error("Application error boundary rendered after authentication");
+    }
+    if (authenticatedState.includes("Let's set you up")) {
+      throw new Error("E2E identity authenticated but has no completed Surge profile");
+    }
+
+    for (const label of ["Map", "Explore", "Spots", "Chats", "Me"]) {
+      if (!(await page.getByRole("button", { name: label, exact: true }).isVisible())) {
+        throw new Error(`Canonical app navigation is missing: ${label}`);
+      }
+    }
+
+    await page.getByRole("button", { name: "Map", exact: true }).click();
+    await page.getByRole("button", { name: "Spots", exact: true }).click();
+    await page.getByRole("button", { name: "Chats", exact: true }).click();
+    await page.getByRole("button", { name: "Me", exact: true }).click();
+    await page.getByRole("button", { name: "Explore", exact: true }).click();
+
+    console.log("Canonical state-driven E2E passed.");
+  } finally {
+    await browser.close();
   }
+}
 
-  console.log("\n📍 Testing /settings route...");
-  await helper.goto("/settings");
-  await page
-    .waitForSelector("text=Settings", { timeout: 5000 })
-    .catch(() => {});
-  await helper.screenshot("demo-settings.png");
-
-  const pageContent = await page.locator("body").innerText();
-  const hasSettings = pageContent.includes("Settings");
-  console.log(`   ✓ Settings visible: ${hasSettings}`);
-  console.log(`   ✓ URL: ${page.url()}`);
-
-  if (!hasSettings) {
-    throw new Error("Settings page not working");
-  }
-
-  console.log("\n📍 Testing landing page...");
-  await helper.goto("/");
-  await helper.screenshot("demo-landing.png");
-  const landingContent = await page.locator("body").innerText();
-  const hasLanding =
-    landingContent.includes("Main Headline") ||
-    landingContent.includes("Get Started");
-  console.log(`   ✓ Landing page content: ${hasLanding}`);
-  console.log(`   ✓ URL: ${page.url()}`);
-
-  if (!hasLanding) {
-    throw new Error("Landing page not working");
-  }
-
-  console.log("\n🎉 All routes working!");
-}).catch(() => process.exit(1));
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
