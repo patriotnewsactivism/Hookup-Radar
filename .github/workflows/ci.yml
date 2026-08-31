@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VITE_CONVEX_URL: ${{ secrets.VITE_CONVEX_URL || vars.VITE_CONVEX_URL || 'https://example.convex.cloud' }}
+
+jobs:
+  quality:
+    name: Quality / Build / E2E
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Verify working tree policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          if git grep -nE 'VITE_IS_PREVIEW|VIKTOR_SPACES_IS_PREVIEW|@test\.local' -- src convex scripts; then
+            echo '::error::Preview backdoor or committed test identity marker detected.'
+            exit 1
+          fi
+
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Biome check
+        run: bun run check
+
+      - name: Security regression tests
+        run: bun run test:unit
+
+      - name: Production build
+        run: bun run build
+
+      - name: Install browser
+        run: bunx playwright install --with-deps chromium
+
+      - name: Start production preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          bun run preview -- --host 127.0.0.1 > /tmp/surge-preview.log 2>&1 &
+          echo $! > /tmp/surge-preview.pid
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/surge-preview.log
+          exit 1
+
+      - name: Canonical state-driven E2E
+        env:
+          APP_URL: http://127.0.0.1:4173
+          E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+          REQUIRE_AUTH_E2E: ${{ secrets.E2E_TEST_EMAIL != '' && secrets.E2E_TEST_PASSWORD != '' }}
+        run: bun run test:demo
+
+      - name: Stop preview
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f /tmp/surge-preview.pid ]]; then kill "$(cat /tmp/surge-preview.pid)" || true; fi
+          cat /tmp/surge-preview.log || true
+
+  history-secret-scan:
+    name: Git history secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
