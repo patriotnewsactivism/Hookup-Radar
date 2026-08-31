@@ -1,25 +1,26 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { identityMatches, profileId, requireSurgeUser } from "./security";
 
-// Generate an upload URL for the client to upload a file directly
 export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireSurgeUser(ctx);
     return await ctx.storage.generateUploadUrl();
   },
 });
 
-// Get a serving URL for a storage ID
 export const getUrl = query({
   args: { storageId: v.id("_storage") },
   handler: async (ctx, args) => {
+    await requireSurgeUser(ctx);
     return await ctx.storage.getUrl(args.storageId);
   },
 });
 
-// Store media metadata after upload
 export const saveMedia = mutation({
   args: {
+    // Retained for client compatibility; ignored.
     user_id: v.string(),
     storage_id: v.id("_storage"),
     type: v.string(),
@@ -30,16 +31,26 @@ export const saveMedia = mutation({
     sort_order: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    // Get the URL for the stored file
+    const me = await requireSurgeUser(ctx);
+    const userId = profileId(me);
+    if (args.type !== "image" && args.type !== "video") {
+      throw new Error("Unsupported media type");
+    }
+    if (args.size !== undefined && args.size < 0) throw new Error("Invalid media size");
+
+    if (args.album_id) {
+      const album = await ctx.db.get(args.album_id);
+      if (!album || album.user_id !== userId) throw new Error("Not authorized");
+    }
+
     const url = await ctx.storage.getUrl(args.storage_id);
     if (!url) throw new Error("Failed to get URL for uploaded file");
 
-    // If this is being set as profile photo, unset existing ones
     if (args.is_profile_photo) {
       const existing = await ctx.db
         .query("surge_media")
         .withIndex("by_user_profile", (q) =>
-          q.eq("user_id", args.user_id).eq("is_profile_photo", true)
+          q.eq("user_id", userId).eq("is_profile_photo", true),
         )
         .collect();
       for (const media of existing) {
@@ -47,16 +58,17 @@ export const saveMedia = mutation({
       }
     }
 
-    // Count existing media for sort order
     const existingCount = args.album_id
-      ? (await ctx.db
-          .query("surge_media")
-          .withIndex("by_album", (q) => q.eq("album_id", args.album_id))
-          .collect()).length
+      ? (
+          await ctx.db
+            .query("surge_media")
+            .withIndex("by_album", (q) => q.eq("album_id", args.album_id))
+            .collect()
+        ).length
       : 0;
 
     const mediaId = await ctx.db.insert("surge_media", {
-      user_id: args.user_id,
+      user_id: userId,
       storage_id: args.storage_id,
       url,
       type: args.type,
@@ -68,51 +80,61 @@ export const saveMedia = mutation({
       created_at: new Date().toISOString(),
     });
 
-    // Update user's photo_url if profile photo
     if (args.is_profile_photo) {
-      const user = await ctx.db
-        .query("surge_users")
-        .filter((q) => q.eq(q.field("_id"), args.user_id as any))
-        .first();
-      if (user) {
-        await ctx.db.patch(user._id, { photo_url: url });
-      }
+      await ctx.db.patch(me._id, { photo_url: url });
     }
 
-    // Update album counts
     if (args.album_id) {
       const album = await ctx.db.get(args.album_id);
       if (album) {
-        if (args.type === "image") {
-          await ctx.db.patch(args.album_id, { photo_count: album.photo_count + 1 });
-        } else {
-          await ctx.db.patch(args.album_id, { video_count: album.video_count + 1 });
-        }
+        const patch =
+          args.type === "image"
+            ? { photo_count: album.photo_count + 1 }
+            : { video_count: album.video_count + 1 };
+        await ctx.db.patch(args.album_id, patch);
         if (!album.cover_storage_id && args.type === "image") {
           await ctx.db.patch(args.album_id, { cover_storage_id: args.storage_id });
         }
       }
     }
 
-    return { mediaId, url };
+    return { mediaId, storageId: args.storage_id, url };
   },
 });
 
-// Get all media for a user
 export const getByUser = query({
   args: { user_id: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const me = await requireSurgeUser(ctx);
+    const media = await ctx.db
       .query("surge_media")
       .withIndex("by_user", (q) => q.eq("user_id", args.user_id))
       .collect();
+
+    if (identityMatches(me, args.user_id)) return media;
+
+    const publicMedia = [];
+    for (const item of media) {
+      if (!item.album_id) {
+        publicMedia.push(item);
+        continue;
+      }
+      const album = await ctx.db.get(item.album_id);
+      if (album && !album.is_private) publicMedia.push(item);
+    }
+    return publicMedia;
   },
 });
 
-// Get media for an album
 export const getByAlbum = query({
   args: { album_id: v.id("surge_albums") },
   handler: async (ctx, args) => {
+    const me = await requireSurgeUser(ctx);
+    const album = await ctx.db.get(args.album_id);
+    if (!album) return [];
+    if (album.is_private && !identityMatches(me, album.user_id)) {
+      throw new Error("Not authorized");
+    }
     return await ctx.db
       .query("surge_media")
       .withIndex("by_album", (q) => q.eq("album_id", args.album_id))
@@ -120,90 +142,82 @@ export const getByAlbum = query({
   },
 });
 
-// Get user's profile photos
 export const getProfilePhotos = query({
   args: { user_id: v.string() },
   handler: async (ctx, args) => {
+    await requireSurgeUser(ctx);
     const all = await ctx.db
       .query("surge_media")
       .withIndex("by_user", (q) => q.eq("user_id", args.user_id))
       .collect();
-    return all.filter((m) => m.type === "image" && !m.album_id);
+    return all.filter((media) => media.type === "image" && !media.album_id);
   },
 });
 
-// Delete media
 export const deleteMedia = mutation({
   args: { media_id: v.id("surge_media") },
   handler: async (ctx, args) => {
+    const me = await requireSurgeUser(ctx);
     const media = await ctx.db.get(args.media_id);
     if (!media) throw new Error("Media not found");
+    if (!identityMatches(me, media.user_id)) throw new Error("Not authorized");
 
-    // Delete from storage
     await ctx.storage.delete(media.storage_id);
-
-    // Update album counts
     if (media.album_id) {
       const album = await ctx.db.get(media.album_id);
       if (album) {
-        if (media.type === "image") {
-          await ctx.db.patch(media.album_id, {
-            photo_count: Math.max(0, album.photo_count - 1),
-          });
-        } else {
-          await ctx.db.patch(media.album_id, {
-            video_count: Math.max(0, album.video_count - 1),
-          });
-        }
+        await ctx.db.patch(media.album_id, {
+          ...(media.type === "image"
+            ? { photo_count: Math.max(0, album.photo_count - 1) }
+            : { video_count: Math.max(0, album.video_count - 1) }),
+        });
       }
     }
-
     await ctx.db.delete(args.media_id);
   },
 });
 
-// Update profile photo URLs array on user
 export const updateUserPhotoUrls = mutation({
-  args: { user_id: v.string() },
-  handler: async (ctx, args) => {
+  args: {
+    // Retained for client compatibility; ignored.
+    user_id: v.string(),
+  },
+  handler: async (ctx) => {
+    const me = await requireSurgeUser(ctx);
+    const userId = profileId(me);
     const media = await ctx.db
       .query("surge_media")
-      .withIndex("by_user", (q) => q.eq("user_id", args.user_id))
+      .withIndex("by_user", (q) => q.eq("user_id", userId))
       .collect();
 
     const photoUrls = media
-      .filter((m) => m.type === "image" && !m.album_id)
+      .filter((item) => item.type === "image" && !item.album_id)
       .sort((a, b) => a.sort_order - b.sort_order)
-      .map((m) => m.url);
+      .map((item) => item.url);
 
-    const user = await ctx.db
-      .query("surge_users")
-      .filter((q) => q.eq(q.field("_id"), args.user_id as any))
-      .first();
-
-    if (user) {
-      await ctx.db.patch(user._id, {
-        photo_urls: photoUrls,
-        ...(photoUrls.length > 0 ? { photo_url: photoUrls[0] } : {}),
-      });
-    }
+    await ctx.db.patch(me._id, {
+      photo_urls: photoUrls,
+      photo_url: photoUrls[0] ?? "",
+    });
   },
 });
 
-// --- ALBUMS ---
-
 export const createAlbum = mutation({
   args: {
+    // Retained for client compatibility; ignored.
     user_id: v.string(),
     name: v.string(),
     description: v.optional(v.string()),
     is_private: v.boolean(),
   },
   handler: async (ctx, args) => {
+    const me = await requireSurgeUser(ctx);
+    const name = args.name.trim();
+    if (!name || name.length > 100) throw new Error("Invalid album name");
     return await ctx.db.insert("surge_albums", {
-      user_id: args.user_id,
-      name: args.name,
-      description: args.description,
+      user_id: profileId(me),
+      name,
+      description: args.description?.trim() || undefined,
       photo_count: 0,
       video_count: 0,
       is_private: args.is_private,
@@ -215,18 +229,20 @@ export const createAlbum = mutation({
 export const getAlbums = query({
   args: { user_id: v.string() },
   handler: async (ctx, args) => {
-    const albums = await ctx.db
+    const me = await requireSurgeUser(ctx);
+    let albums = await ctx.db
       .query("surge_albums")
       .withIndex("by_user", (q) => q.eq("user_id", args.user_id))
       .collect();
+    if (!identityMatches(me, args.user_id)) {
+      albums = albums.filter((album) => !album.is_private);
+    }
 
-    // Attach cover URLs
     const result = [];
     for (const album of albums) {
-      let coverUrl: string | null = null;
-      if (album.cover_storage_id) {
-        coverUrl = await ctx.storage.getUrl(album.cover_storage_id);
-      }
+      const coverUrl = album.cover_storage_id
+        ? await ctx.storage.getUrl(album.cover_storage_id)
+        : null;
       result.push({ ...album, coverUrl });
     }
     return result;
@@ -236,39 +252,55 @@ export const getAlbums = query({
 export const deleteAlbum = mutation({
   args: { album_id: v.id("surge_albums") },
   handler: async (ctx, args) => {
-    // Delete all media in album
+    const me = await requireSurgeUser(ctx);
+    const album = await ctx.db.get(args.album_id);
+    if (!album) return;
+    if (!identityMatches(me, album.user_id)) throw new Error("Not authorized");
+
     const media = await ctx.db
       .query("surge_media")
       .withIndex("by_album", (q) => q.eq("album_id", args.album_id))
       .collect();
-
-    for (const m of media) {
-      await ctx.storage.delete(m.storage_id);
-      await ctx.db.delete(m._id);
+    for (const item of media) {
+      await ctx.storage.delete(item.storage_id);
+      await ctx.db.delete(item._id);
     }
-
     await ctx.db.delete(args.album_id);
   },
 });
 
-// Send a media message in chat
 export const sendMediaMessage = mutation({
   args: {
     conversation_id: v.string(),
+    // Retained for client compatibility; ignored.
     sender_id: v.string(),
     receiver_id: v.string(),
     storage_id: v.id("_storage"),
     media_type: v.string(),
   },
   handler: async (ctx, args) => {
+    const me = await requireSurgeUser(ctx);
+    const senderId = profileId(me);
+    if (args.receiver_id === senderId) throw new Error("Invalid receiver");
+    if (args.conversation_id !== [senderId, args.receiver_id].sort().join("_")) {
+      throw new Error("Invalid conversation");
+    }
+
+    const ownedMedia = await ctx.db
+      .query("surge_media")
+      .withIndex("by_user", (q) => q.eq("user_id", senderId))
+      .collect();
+    if (!ownedMedia.some((media) => media.storage_id === args.storage_id)) {
+      throw new Error("Not authorized");
+    }
+
     const url = await ctx.storage.getUrl(args.storage_id);
     if (!url) throw new Error("Failed to get media URL");
-
     return await ctx.db.insert("surge_messages", {
       conversation_id: args.conversation_id,
-      sender_id: args.sender_id,
+      sender_id: senderId,
       receiver_id: args.receiver_id,
-      text: args.media_type === "video" ? "📹 Video" : "📷 Photo",
+      text: args.media_type === "video" ? "Video" : "Photo",
       media_url: url,
       media_type: args.media_type,
       status: "sent",
