@@ -78,12 +78,11 @@ export function ChatPage({ otherUser, conversationId, onBack }: Props) {
       if (!isImage && !isVideo) { toast.error('Only photos and videos allowed'); return; }
       const result = await uploadMedia(file, profile.id, { isProfilePhoto: false });
       if (result) {
-        // Use the storage-based media message
         await sendMediaMessage({
           conversation_id: conversationId,
           sender_id: profile.id,
           receiver_id: otherUser.id,
-          storage_id: result.mediaId as any,
+          storage_id: result.storageId as any,
           media_type: isImage ? 'image' : 'video',
         });
         toast.success(`${isImage ? 'Photo' : 'Video'} sent!`);
@@ -117,7 +116,6 @@ export function ChatPage({ otherUser, conversationId, onBack }: Props) {
 
   return (
     <div className="flex flex-col h-full bg-black">
-      {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-gray-950/80 backdrop-blur-md flex-shrink-0">
         <button onClick={onBack} className="text-gray-400 hover:text-white">
           <ArrowLeft size={20} />
@@ -153,7 +151,6 @@ export function ChatPage({ otherUser, conversationId, onBack }: Props) {
         </div>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {!hasMessages && (
           <IcebreakerPrompt them={otherUser} onSelect={handleIcebreaker} />
@@ -199,7 +196,6 @@ export function ChatPage({ otherUser, conversationId, onBack }: Props) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Emoji quick bar */}
       {showEmoji && (
         <div className="flex gap-2 px-4 py-2 border-t border-white/5 overflow-x-auto">
           {EMOJI_QUICK.map(e => (
@@ -210,11 +206,8 @@ export function ChatPage({ otherUser, conversationId, onBack }: Props) {
         </div>
       )}
 
-      {/* Input */}
-      {/* Hidden file input for media */}
       <input ref={mediaInputRef} type="file" accept="image/*,video/*" onChange={handleMediaSend} className="hidden" />
 
-      {/* Media upload progress */}
       {mediaUploading && (
         <div className="px-4 py-2 bg-purple-900/30 border-t border-purple-700/30 flex items-center gap-2 text-sm text-purple-300">
           <Loader2 size={14} className="animate-spin" />
