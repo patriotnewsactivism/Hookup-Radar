@@ -94,8 +94,8 @@ jobs:
         shell: bash
         run: |
           if ! git diff --quiet -- bun.lock; then
-            echo '::error::bun.lock is stale for the CI Bun version; commit the generated bun-lock-refresh artifact.'
-            git diff --stat -- bun.lock
+            echo '::error::bun.lock is stale for the CI Bun version; exact diff follows.'
+            git diff -- bun.lock
             exit 1
           fi
 
