@@ -5,8 +5,10 @@
 // ─────────────────────────────────────────────────────────────
 
 import React, { useRef, useEffect, useState } from 'react';
-import { useQuery, useMutation } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import { notifications as notificationsApi } from '../lib/surgeApi';
+import { useAsyncQueryWithRefresh } from '../lib/useSupabaseQuery';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabaseClient';
 import { Bell, Check, MessageCircle, Eye, MapPin, Calendar, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -41,14 +43,32 @@ function timeAgo(iso: string): string {
 }
 
 export function NotificationPanel() {
+  const { profile } = useAuth();
   const [open, setOpen] = useState(false);
+  const [refreshToken, setRefreshToken] = useState(0);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const notifications = (useQuery(api.surgeNotifications.list, { limit: 30 }) ?? []) as Notification[];
+  const notifications = (useAsyncQueryWithRefresh(notificationsApi.list, { limit: 30 }, refreshToken) ?? []) as Notification[];
   const unread = notifications.filter((n) => !n.is_read).length;
 
-  const markRead    = useMutation(api.surgeNotifications.markRead);
-  const markAllRead = useMutation(api.surgeNotifications.markAllRead);
+  const markRead    = notificationsApi.markRead;
+  const markAllRead = notificationsApi.markAllRead;
+
+  // Live updates: bump refreshToken whenever a notification row changes for me.
+  useEffect(() => {
+    if (!profile?.id) return;
+    const channel = supabase
+      .channel(`notifications-${profile.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'surge_notifications', filter: `user_id=eq.${profile.id}` },
+        () => setRefreshToken((t) => t + 1)
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [profile?.id]);
 
   // Close on outside click
   useEffect(() => {
@@ -92,7 +112,7 @@ export function NotificationPanel() {
               <span className="text-white font-semibold text-sm">Notifications</span>
               {unread > 0 && (
                 <button
-                  onClick={() => markAllRead()}
+                  onClick={() => markAllRead().then(() => setRefreshToken((t) => t + 1))}
                   className="flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 transition-colors"
                 >
                   <Check className="w-3 h-3" />
@@ -111,7 +131,7 @@ export function NotificationPanel() {
                 notifications.map((n) => (
                   <div
                     key={n.id}
-                    onClick={() => !n.is_read && markRead({ id: n.id as any })}
+                    onClick={() => !n.is_read && markRead({ id: n.id }).then(() => setRefreshToken((t) => t + 1))}
                     className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-white/5 ${
                       !n.is_read ? 'bg-purple-950/30' : ''
                     }`}

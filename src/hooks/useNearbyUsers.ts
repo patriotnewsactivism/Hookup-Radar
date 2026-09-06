@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
-import { useQuery } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import { useMemo, useState, useEffect } from 'react';
+import { users as usersApi } from '../lib/surgeApi';
+import { useAsyncQueryWithRefresh } from '../lib/useSupabaseQuery';
+import { supabase } from '../lib/supabaseClient';
 import { SurgeUser, Orientation } from '../types';
 import { getBotsForArea } from '../lib/bots';
 
@@ -36,21 +37,34 @@ export function useNearbyUsers(
   filters?: Filters,
   myOrientation?: Orientation
 ) {
-  const rawUsers = useQuery(
-    api.surgeUsers.getNearby,
+  const [refreshToken, setRefreshToken] = useState(0);
+  const rawUsers = useAsyncQueryWithRefresh(
+    usersApi.getNearby,
     myLat !== null && myLng !== null
       ? {
-          // Kept for the compatibility validator. The backend ignores these
-          // coordinates and derives the origin from the authenticated profile.
-          lat: myLat,
-          lng: myLng,
           radius: 0.15,
           onlineOnly: filters?.online_only,
           minAge: filters?.min_age,
           maxAge: filters?.max_age,
         }
-      : 'skip'
+      : 'skip',
+    refreshToken
   );
+
+  // Live updates: refresh nearby list when any user's row changes
+  // (comes online/offline, moves, updates show_on_map, etc).
+  useEffect(() => {
+    if (myLat === null || myLng === null) return;
+    const channel = supabase
+      .channel('nearby-users')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'surge_users' }, () =>
+        setRefreshToken((t) => t + 1)
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [myLat, myLng]);
 
   const loading = rawUsers === undefined;
 
@@ -107,7 +121,7 @@ export function useNearbyUsers(
     return combined;
   }, [rawUsers, myLat, myLng, filters, myOrientation]);
 
-  return { users, loading, refetch: () => {} };
+  return { users, loading, refetch: () => setRefreshToken((t) => t + 1) };
 }
 
 function interleave(real: SurgeUser[], bots: SurgeUser[], every: number): SurgeUser[] {

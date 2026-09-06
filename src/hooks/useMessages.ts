@@ -1,25 +1,29 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useQuery, useMutation } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import { messages as messagesApi } from '../lib/surgeApi';
+import { useAsyncQueryWithRefresh } from '../lib/useSupabaseQuery';
+import { supabase } from '../lib/supabaseClient';
 import { Message } from '../types';
 import { isBot, getBotReply, botReplyDelay } from '../lib/bots';
 
 export function useMessages(conversationId: string | null, myId: string | null) {
   const [botTyping, setBotTyping] = useState(false);
+  const [refreshToken, setRefreshToken] = useState(0);
   const botTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const rawMessages = useQuery(
-    api.surgeMessages.getByConversation,
-    conversationId ? { conversation_id: conversationId } : 'skip'
+  const rawMessages = useAsyncQueryWithRefresh(
+    messagesApi.getByConversation,
+    conversationId ? { conversation_id: conversationId } : 'skip',
+    refreshToken
   );
-  const sendMutation = useMutation(api.surgeMessages.send);
-  const sendBotReplyMutation = useMutation(api.surgeMessages.sendBotReply);
-  const markReadMutation = useMutation(api.surgeMessages.markRead);
+
+  const sendMutation = messagesApi.send;
+  const sendBotReplyMutation = messagesApi.sendBotReply;
+  const markReadMutation = messagesApi.markRead;
 
   const loading = rawMessages === undefined;
   const messages: Message[] = (rawMessages ?? []).map((message: any) => ({
-    id: message._id,
+    id: message.id,
     conversation_id: message.conversation_id,
     sender_id: message.sender_id,
     receiver_id: message.receiver_id,
@@ -28,14 +32,30 @@ export function useMessages(conversationId: string | null, myId: string | null) 
     media_type: message.media_type,
     reply_to_id: message.reply_to_id,
     status: message.status || 'sent',
-    created_date: message.created_date || new Date(message._creationTime).toISOString(),
+    created_date: message.created_date || new Date().toISOString(),
   }));
+
+  // Live updates for this conversation via Supabase Realtime.
+  useEffect(() => {
+    if (!conversationId) return;
+    const channel = supabase
+      .channel(`messages-${conversationId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'surge_messages', filter: `conversation_id=eq.${conversationId}` },
+        () => setRefreshToken((t) => t + 1)
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [conversationId]);
 
   useEffect(() => {
     if (!myId || !messages.length) return;
     messages.forEach((message) => {
       if (message.receiver_id === myId && message.status !== 'read') {
-        markReadMutation({ id: message.id as any }).catch(() => {});
+        markReadMutation({ id: message.id }).catch(() => {});
       }
     });
   }, [messages, myId, markReadMutation]);
@@ -57,6 +77,7 @@ export function useMessages(conversationId: string | null, myId: string | null) 
         receiver_id: myId,
         text: getBotReply(userMessage),
       });
+      setRefreshToken((t) => t + 1);
     }, delay);
   }, [conversationId, myId, sendBotReplyMutation]);
 
@@ -74,12 +95,12 @@ export function useMessages(conversationId: string | null, myId: string | null) 
     if (!conversationId || !myId || !receiverId) return;
     await sendMutation({
       conversation_id: conversationId,
-      sender_id: myId,
       receiver_id: receiverId,
       text,
       media_url: mediaUrl,
       media_type: mediaType,
     });
+    setRefreshToken((t) => t + 1);
     if (isBot(receiverId)) scheduleBotReply(receiverId, text);
   };
 

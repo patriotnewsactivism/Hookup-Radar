@@ -2,8 +2,7 @@
  * FakeProfileReporter — one-tap bot/fake report with reason selection.
  */
 import React, { useState } from 'react';
-import { useMutation } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import { reports } from '../lib/surgeApi';
 import { SurgeUser } from '../types';
 import { toast } from 'sonner';
 import { Flag, X, AlertTriangle } from 'lucide-react';
@@ -27,14 +26,13 @@ export function FakeProfileReporter({ user, reporterId, onClose }: Props) {
   const [reason, setReason] = useState('');
   const [details, setDetails] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const createReport = useMutation(api.surgeReports.create);
+  const createReport = reports.create;
 
   const handleSubmit = async () => {
     if (!reason) { toast.error('Select a reason'); return; }
     setSubmitting(true);
     try {
       await createReport({
-        reporter_id: reporterId,
         reported_id: user.id,
         reason: `fake_profile: ${reason}`,
         details: details || undefined,

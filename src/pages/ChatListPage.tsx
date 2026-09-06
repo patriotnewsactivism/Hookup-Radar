@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useQuery } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import { messages as messagesApi } from '../lib/surgeApi';
+import { useAsyncQueryWithRefresh } from '../lib/useSupabaseQuery';
+import { supabase } from '../lib/supabaseClient';
 import { SurgeUser } from '../types';
 import { Avatar } from '../components/ui/SurgeAvatar';
 import { formatDistanceToNow } from 'date-fns';
@@ -20,11 +21,27 @@ export function ChatListPage() {
   const { profile } = useAuth();
   const [activeConvo, setActiveConvo] = useState<ConvoSummary | null>(null);
 
-  // Reactive Convex query for conversations
-  const conversations = useQuery(
-    api.surgeMessages.getConversations,
-    profile?.id ? { user_id: profile.id } : "skip"
+  const [refreshToken, setRefreshToken] = useState(0);
+  const conversations = useAsyncQueryWithRefresh(
+    messagesApi.getConversations,
+    profile?.id ? {} : "skip",
+    refreshToken
   );
+
+  useEffect(() => {
+    if (!profile?.id) return;
+    const channel = supabase
+      .channel(`chatlist-${profile.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'surge_messages', filter: `receiver_id=eq.${profile.id}` },
+        () => setRefreshToken((t) => t + 1)
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [profile?.id]);
 
   const loading = conversations === undefined;
 
