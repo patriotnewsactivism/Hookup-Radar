@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { users as usersApi } from '../lib/surgeApi';
 import { useAsyncQueryWithRefresh } from '../lib/useSupabaseQuery';
 import { supabase } from '../lib/supabaseClient';
@@ -38,6 +38,11 @@ export function useNearbyUsers(
   myOrientation?: Orientation
 ) {
   const [refreshToken, setRefreshToken] = useState(0);
+  // Every mounted instance of this hook (GridPage, MapPage, RightNowFeed, etc.
+  // can all be mounted at once) needs its own Realtime channel — Supabase's
+  // client throws "cannot add postgres_changes callbacks ... after subscribe()"
+  // if two instances try to .channel() + .subscribe() the same topic name.
+  const channelNameRef = useRef(`nearby-users-${Math.random().toString(36).slice(2)}`);
   const rawUsers = useAsyncQueryWithRefresh(
     usersApi.getNearby,
     myLat !== null && myLng !== null
@@ -56,7 +61,7 @@ export function useNearbyUsers(
   useEffect(() => {
     if (myLat === null || myLng === null) return;
     const channel = supabase
-      .channel('nearby-users')
+      .channel(channelNameRef.current)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'surge_users' }, () =>
         setRefreshToken((t) => t + 1)
       )

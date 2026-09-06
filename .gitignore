@@ -31,3 +31,6 @@ tmp/
 test-results/
 playwright-report/bun.lock
 package-lock.json
+.vercel
+qa_*.mjs
+check_live.mjs
