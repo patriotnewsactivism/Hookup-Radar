@@ -2,6 +2,7 @@
 
 interface ImportMetaEnv {
   readonly VITE_CONVEX_URL: string;
+  readonly VITE_CARTO_API_KEY: string;
 }
 
 interface ImportMeta {

@@ -153,3 +153,16 @@ input[type="range"]::-webkit-slider-thumb {
   height: 100%;
   background: var(--bg-base) !important;
 }
+
+/* Keep CARTO/OSM attribution (required by CARTO's basemap terms) but style
+   it to sit quietly on the dark map UI instead of the default white pill. */
+.leaflet-control-attribution {
+  background: rgba(17, 17, 17, 0.55) !important;
+  color: rgba(255, 255, 255, 0.55) !important;
+  font-size: 10px !important;
+  padding: 1px 6px !important;
+  border-radius: 6px !important;
+}
+.leaflet-control-attribution a {
+  color: rgba(255, 255, 255, 0.7) !important;
+}

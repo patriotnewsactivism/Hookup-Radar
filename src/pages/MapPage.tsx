@@ -10,7 +10,15 @@ import { SurgeUser } from '../types';
 import { Crosshair, Layers } from 'lucide-react';
 import { isRightNowActive } from '../lib/rightNow';
 
-const CARTO_DARK = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+// CARTO now requires an API key on basemap tile requests (policy change,
+// see carto.com/basemaps/apikey) -- without it tiles get an "API key
+// required" watermark or start failing once the anonymous-tier limit hits.
+// This is a client-embedded key by CARTO's own design (it ships straight in
+// the Leaflet tile URL), not a backend secret.
+const CARTO_API_KEY = import.meta.env.VITE_CARTO_API_KEY as string | undefined;
+const CARTO_DARK = CARTO_API_KEY
+  ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=${CARTO_API_KEY}`
+  : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
 
 function userIcon(user: SurgeUser, isMe: boolean) {
   const online = user.is_online;
@@ -52,9 +60,15 @@ export function MapPage() {
       center: [lat || 39.5, lng || -98.35],
       zoom: 13,
       zoomControl: false,
-      attributionControl: false,
+      // CARTO's free tier requires visible attribution in exchange for the
+      // basemap -- keep it on, just styled small/muted to stay out of the way.
+      attributionControl: { position: 'bottomleft' },
     });
-    L.tileLayer(CARTO_DARK, { maxZoom: 19 }).addTo(map);
+    L.tileLayer(CARTO_DARK, {
+      maxZoom: 19,
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener noreferrer">CARTO</a>',
+    }).addTo(map);
     markersRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
 
