@@ -29,6 +29,7 @@ create index if not exists surge_invites_inviter_created_idx
   on surge_invites (inviter_id, created_at desc);
 
 alter table surge_invites enable row level security;
+drop policy if exists "inviters select their own invites" on surge_invites;
 create policy "inviters select their own invites"
   on surge_invites for select
   using (
@@ -37,6 +38,7 @@ create policy "inviters select their own invites"
       where su.id = surge_invites.inviter_id and su.auth_id = auth.uid()
     )
   );
+drop policy if exists "inviters insert their own invites" on surge_invites;
 create policy "inviters insert their own invites"
   on surge_invites for insert
   with check (
@@ -62,6 +64,7 @@ create index if not exists surge_reward_ledger_user_idx
   on surge_reward_ledger (user_id, granted_at desc);
 
 alter table surge_reward_ledger enable row level security;
+drop policy if exists "users select their own rewards" on surge_reward_ledger;
 create policy "users select their own rewards"
   on surge_reward_ledger for select
   using (
@@ -82,6 +85,7 @@ create index if not exists surge_profile_views_viewed_idx
   on surge_profile_views (viewed_id, viewed_at desc);
 
 alter table surge_profile_views enable row level security;
+drop policy if exists "users select who viewed them" on surge_profile_views;
 create policy "users select who viewed them"
   on surge_profile_views for select
   using (
@@ -90,9 +94,10 @@ create policy "users select who viewed them"
       where su.id = surge_profile_views.viewed_id and su.auth_id = auth.uid()
     )
   );
+drop policy if exists "any signed-in user records a view" on surge_profile_views;
 create policy "any signed-in user records a view"
   on surge_profile_views for insert
-  using (auth.role() = 'authenticated');
+  with check (auth.role() = 'authenticated');
 
 -- ─────────────────────────────────────────────────────────────
 -- surge_users — referral economy columns

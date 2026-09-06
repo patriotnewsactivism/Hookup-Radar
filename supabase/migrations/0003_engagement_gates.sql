@@ -20,6 +20,7 @@ create index if not exists surge_right_now_log_user_day_idx
   on surge_right_now_log (user_id, started_at);
 
 alter table surge_right_now_log enable row level security;
+drop policy if exists "users select their own right-now log" on surge_right_now_log;
 create policy "users select their own right-now log"
   on surge_right_now_log for select
   using (
