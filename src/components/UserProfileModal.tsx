@@ -66,7 +66,6 @@ export function UserProfileModal({ user, onClose, onChat }: Props) {
 
   const isAnon = user.is_anonymous;
   const isRightNow = isRightNowActive(user);
-  const isDemo = user.is_demo === true;
 
   return (
     <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -88,11 +87,7 @@ export function UserProfileModal({ user, onClose, onChat }: Props) {
               🔥 Right Now
             </div>
           )}
-          {isDemo ? (
-            <div className="absolute bottom-3 right-3 bg-[var(--bg-muted)] border border-[var(--border-strong)] px-3 py-1 rounded-full text-[var(--accent)] text-xs font-bold">
-              DEMO
-            </div>
-          ) : user.is_online && (
+          {user.is_online && (
             <div className="absolute bottom-3 right-3 bg-green-600 px-3 py-1 rounded-full text-white text-xs font-bold">
               Online
             </div>
@@ -160,15 +155,9 @@ export function UserProfileModal({ user, onClose, onChat }: Props) {
           <ReliabilityBadge userId={user.id} />
 
           <div className="flex gap-2">
-            {isDemo ? (
-              <div className="flex-1 bg-gray-900 border border-[var(--border-strong)] text-[var(--text-secondary)] font-bold py-3 rounded-2xl flex items-center justify-center gap-2 text-sm">
-                Demo profile — not a real person
-              </div>
-            ) : (
-              <button onClick={handleChat} className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-3 rounded-2xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
-                <MessageCircle size={18} /> Message
-              </button>
-            )}
+            <button onClick={handleChat} className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-3 rounded-2xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
+              <MessageCircle size={18} /> Message
+            </button>
             <button onClick={() => setShowRate(true)} className="bg-gray-900 border border-white/10 text-yellow-400 p-3 rounded-2xl hover:bg-white/5 transition-colors">
               <Star size={18} />
             </button>

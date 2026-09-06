@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
@@ -44,23 +44,20 @@ describe("release security contract", () => {
   });
 });
 
-describe("demo profile policy", () => {
-  test("demo profiles are never interleaved into the live grid by default", () => {
-    const hook = read("src/hooks/useNearbyUsers.ts");
-    // The demo toggle is opt-in — default OFF.
-    expect(hook).toContain("includeDemo = false");
-    // The demo pool may only be requested behind the opt-in gate — the
-    // getBotsForArea call site must appear after the `includeDemo &&` condition
-    // (lastIndexOf skips the module import at the top of the file).
-    const gate = hook.indexOf("includeDemo &&");
-    const call = hook.lastIndexOf("getBotsForArea");
-    expect(gate).toBeGreaterThan(-1);
-    expect(call).toBeGreaterThan(gate);
+describe("fake profile policy", () => {
+  test("no fake/demo profile pool ships anywhere in the frontend", () => {
+    // The demo/bot module must not exist.
+    expect(existsSync("src/lib/bots.ts")).toBe(false);
+    // And no consumer may reach for it under any name.
+    const nearest = read("src/hooks/useNearbyUsers.ts");
+    expect(nearest).not.toContain("BotsForArea");
+    expect(nearest).not.toContain("demo");
   });
 
-  test("demo profiles are never verified", () => {
-    const bots = read("src/lib/bots.ts");
-    expect(bots).not.toContain("is_verified: true");
-    expect(bots).toContain("is_demo: true");
+  test("public user selects never reference columns that do not exist", () => {
+    const api = read("src/lib/surgeApi.ts");
+    // is_demo was a client-side-only flag on fake profiles — there is no
+    // surge_users.is_demo column, so selecting it fails every nearby query.
+    expect(api).not.toContain("is_demo");
   });
 });

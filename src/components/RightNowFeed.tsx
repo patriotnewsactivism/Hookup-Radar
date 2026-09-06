@@ -12,7 +12,11 @@ interface Props {
 
 export function RightNowFeed({ onSelectUser }: Props) {
   const { profile } = useAuth();
-  const { users } = useNearbyUsers(profile?.lat ?? 0, profile?.lng ?? 0);
+  // Without real coordinates (0,0 = location skipped) the nearby query is
+  // skipped entirely instead of searching the Gulf of Guinea.
+  const hasCoords = profile && typeof profile.lat === 'number' && profile.lat !== 0
+    && typeof profile.lng === 'number' && profile.lng !== 0;
+  const { users } = useNearbyUsers(hasCoords ? profile!.lat : null, hasCoords ? profile!.lng : null);
 
   const rightNowUsers = users
     .filter(u => isRightNowActive(u) && u.is_online)

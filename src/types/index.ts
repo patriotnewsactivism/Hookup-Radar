@@ -32,7 +32,6 @@ export interface SurgeUser {
   is_anonymous: boolean;
   is_verified: boolean;
   is_premium: boolean;
-  is_demo?: boolean; // opt-in demo profile — never verified, never shown by default
   premium_until?: string;
   free_trial_until?: string;
   right_now_until?: string; // ISO timestamp — the "Right Now" signal

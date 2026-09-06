@@ -51,7 +51,7 @@ async function requireMyProfile(): Promise<any> {
 // Referral codes, referrer links, emails and reward counters are private to
 // the viewer's own row and must NEVER appear in public selects.
 const PUBLIC_USER_COLUMNS =
-  'id, username, display_name, age, bio, gender, orientation, lifestyle, position, height, weight, body_type, ethnicity, health_status, looking_for, kinks, tags, fantasies, photo_url, photo_urls, lat, lng, last_seen, is_online, is_anonymous, is_verified, is_premium, premium_until, free_trial_until, right_now_until, boost_expires_at, badges, is_demo, profile_views, show_distance, show_on_map, created_at';
+  'id, username, display_name, age, bio, gender, orientation, lifestyle, position, height, weight, body_type, ethnicity, health_status, looking_for, kinks, tags, fantasies, photo_url, photo_urls, lat, lng, last_seen, is_online, is_anonymous, is_verified, is_premium, premium_until, free_trial_until, right_now_until, boost_expires_at, badges, profile_views, show_distance, show_on_map, created_at';
 
 function toPublicProfile(user: any, distanceFeet?: number) {
   const pub: any = { ...user };

@@ -45,7 +45,6 @@ function mapProfile(viewer: any): SurgeUser | null {
     is_anonymous: viewer.is_anonymous ?? false,
     is_premium: viewer.is_premium ?? false,
     is_verified: viewer.is_verified ?? false,
-    is_demo: viewer.is_demo ?? false,
     show_on_map: viewer.show_on_map ?? true,
     show_distance: viewer.show_distance ?? true,
     profile_views: viewer.profile_views ?? 0,

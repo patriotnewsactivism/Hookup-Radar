@@ -20,10 +20,9 @@ import { AnimatePresence } from 'framer-motion';
 
 export function GridPage() {
   const { profile } = useAuth();
-  const { lat, lng } = useLocation(profile?.id);
+  const { lat, lng } = useLocation(profile);
   const [filters, setFilters] = useState<Filters>({});
-  const [showDemo, setShowDemo] = useState(false);
-  const { users, loading, refetch } = useNearbyUsers(lat, lng, filters, profile?.orientation, showDemo);
+  const { users, loading, refetch } = useNearbyUsers(lat, lng, filters, profile?.orientation);
   const [selectedUser, setSelectedUser] = useState<SurgeUser | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [showSafeWord, setShowSafeWord] = useState(false);
@@ -34,8 +33,7 @@ export function GridPage() {
     return true;
   });
 
-  const realCount = filteredUsers.filter(u => !u.is_demo).length;
-  const demoCount = filteredUsers.filter(u => u.is_demo).length;
+  const realCount = filteredUsers.length;
 
   const rightNowUsers = filteredUsers.filter(u => isRightNowActive(u));
   const otherUsers    = filteredUsers.filter(u => !isRightNowActive(u));
@@ -95,7 +93,7 @@ export function GridPage() {
           <Zap className="w-5 h-5 text-purple-400" />
           <span className="text-white font-black text-lg tracking-tight">SURGE</span>
           <span className="text-gray-600 text-xs ml-1">
-            {loading ? 'Scanning…' : demoCount > 0 ? `${demoCount} demo profiles` : `${realCount} nearby`}
+            {loading ? 'Scanning…' : `${realCount} nearby`}
           </span>
         </div>
 
@@ -188,19 +186,6 @@ export function GridPage() {
         {/* Banner ad (non-premium) */}
         {!profile?.is_premium && <AdCard />}
 
-        {/* Demo area notice — visible whenever demo profiles are filling the grid */}
-        {demoCount > 0 && (
-          <div className="flex items-center gap-2 mx-4 my-3 bg-[var(--bg-muted)] border border-[var(--border-strong)] rounded-xl px-3 py-2.5">
-            <span className="text-xs font-bold text-[var(--accent)]">DEMO AREA</span>
-            <span className="text-xs text-[var(--text-secondary)] flex-1 leading-snug">
-              Sample profiles for preview — not real people, and they never message back.
-            </span>
-            <button onClick={() => setShowDemo(false)} className="text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)]">
-              Hide
-            </button>
-          </div>
-        )}
-
         {/* Right Now live feed */}
         <RightNowFeed onSelectUser={setSelectedUser} />
 
@@ -267,7 +252,7 @@ export function GridPage() {
         )}
 
         {/* Empty state */}
-        {!loading && realCount === 0 && demoCount === 0 && (
+        {!loading && realCount === 0 && (
           <div className="flex flex-col items-center justify-center py-10 px-6 text-center">
             <div className="text-4xl mb-4">⚡</div>
             <p className="text-white font-bold mb-2">No one nearby yet</p>
@@ -297,21 +282,6 @@ export function GridPage() {
               >
                 Invite now
               </button>
-            </div>
-
-            {/* Demo profiles — explicitly opt-in, never verified */}
-            <div className="flex items-center gap-3 mt-4 w-full max-w-xs">
-              <button
-                onClick={() => setShowDemo(true)}
-                aria-pressed={showDemo}
-                className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${showDemo ? 'bg-[var(--accent)]' : 'bg-gray-700'}`}
-              >
-                <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${showDemo ? 'translate-x-5' : 'translate-x-0.5'}`} />
-              </button>
-              <div className="flex-1 text-left">
-                <p className="text-white text-sm font-medium">Fill grid with demo profiles</p>
-                <p className="text-[var(--text-muted)] text-xs">Sample profiles labeled DEMO — not real people</p>
-              </div>
             </div>
           </div>
         )}

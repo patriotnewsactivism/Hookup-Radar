@@ -37,7 +37,7 @@ function userIcon(user: SurgeUser, isMe: boolean) {
 
 export function MapPage() {
   const { profile } = useAuth();
-  const { lat, lng } = useLocation();
+  const { lat, lng } = useLocation(profile);
   const { users } = useNearbyUsers(lat, lng);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.LayerGroup | null>(null);
@@ -48,7 +48,8 @@ export function MapPage() {
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
     const map = L.map(containerRef.current, {
-      center: [lat || 32.3, lng || -90.2],
+      // Neutral US center until the live fix arrives (never a hardcoded city).
+      center: [lat || 39.5, lng || -98.35],
       zoom: 13,
       zoomControl: false,
       attributionControl: false,

@@ -47,9 +47,7 @@ export function UserCard({ user, onClick, isFavorite }: Props) {
 
       {/* Top badges */}
       <div className="absolute top-2 left-2 right-2 flex justify-between items-start">
-        {user.is_demo ? (
-          <span className="bg-gray-800 border border-[var(--border-strong)] text-[var(--accent)] text-xs font-bold px-2 py-0.5 rounded-full">DEMO</span>
-        ) : user.is_online ? (
+        {user.is_online ? (
           <span className="bg-green-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">Online</span>
         ) : <span />}
         {isFavorite && <span className="text-lg">❤️</span>}

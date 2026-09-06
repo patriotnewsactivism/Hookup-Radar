@@ -3,7 +3,6 @@ import { users as usersApi } from '../lib/surgeApi';
 import { useAsyncQueryWithRefresh } from '../lib/useSupabaseQuery';
 import { supabase } from '../lib/supabaseClient';
 import { SurgeUser, Orientation } from '../types';
-import { getBotsForArea } from '../lib/bots';
 
 function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 20902231;
@@ -35,8 +34,7 @@ export function useNearbyUsers(
   myLat: number | null,
   myLng: number | null,
   filters?: Filters,
-  myOrientation?: Orientation,
-  includeDemo = false
+  myOrientation?: Orientation
 ) {
   const [refreshToken, setRefreshToken] = useState(0);
   // Every mounted instance of this hook (GridPage, MapPage, RightNowFeed, etc.
@@ -117,19 +115,8 @@ export function useNearbyUsers(
       results = results.filter((user) => user.is_verified);
     }
 
-    // Demo profiles are opt-in only (default OFF), appear solely when there
-    // are zero real users nearby, and are never interleaved into the real
-    // grid. They are labeled as demo everywhere they render.
-    if (includeDemo && rawUsers.length === 0) {
-      const demos = getBotsForArea(myLat, myLng, myOrientation).map((bot) => ({
-        ...bot,
-        distance: haversineDistance(myLat, myLng, bot.lat, bot.lng),
-      })) as SurgeUser[];
-      return demos.sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0));
-    }
-
     return results;
-  }, [rawUsers, myLat, myLng, filters, myOrientation, includeDemo]);
+  }, [rawUsers, myLat, myLng, filters, myOrientation]);
 
   return { users, loading, refetch: () => setRefreshToken((t) => t + 1) };
 }
