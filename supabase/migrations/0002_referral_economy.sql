@@ -99,17 +99,17 @@ create policy "any signed-in user records a view"
 -- ─────────────────────────────────────────────────────────────
 
 alter table surge_users
-  add column referral_code text,
-  add column referrer_id uuid references surge_users(id) on delete set null,
-  add column total_invites_sent integer not null default 0,
-  add column total_referrals integer not null default 0,
-  add column total_free_days_earned numeric not null default 0,
-  add column current_streak integer not null default 0,
-  add column last_active_date date,
-  add column milestone_checked_at timestamptz,
-  add column boost_expires_at timestamptz,
-  add column badges text[] not null default '{}',
-  add column email_confirmed_at timestamptz;
+  add column if not exists referral_code text,
+  add column if not exists referrer_id uuid references surge_users(id) on delete set null,
+  add column if not exists total_invites_sent integer not null default 0,
+  add column if not exists total_referrals integer not null default 0,
+  add column if not exists total_free_days_earned numeric not null default 0,
+  add column if not exists current_streak integer not null default 0,
+  add column if not exists last_active_date date,
+  add column if not exists milestone_checked_at timestamptz,
+  add column if not exists boost_expires_at timestamptz,
+  add column if not exists badges text[] not null default '{}',
+  add column if not exists email_confirmed_at timestamptz;
 
 create unique index if not exists surge_users_referral_code_key
   on surge_users (referral_code)
@@ -226,7 +226,7 @@ begin
     raise exception 'surge_grant_premium: profile not found';
   end if;
 
-  select surge_admin_apply_reward(v_me.id, p_days, p_type, p_reason);
+  perform surge_admin_apply_reward(v_me.id, p_days, p_type, p_reason);
   return jsonb_build_object('ok', true, 'days', p_days);
 end;
 $$;
@@ -318,7 +318,7 @@ begin
     values (v_me.id, v_code, p_channel);
   end if;
 
-  select surge_admin_apply_reward(
+  perform surge_admin_apply_reward(
     v_me.id, 1, 'invite_send', 'Invited a friend (' || p_channel || ')',
     null, true, false
   );
@@ -359,14 +359,14 @@ begin
 
   update surge_users set referrer_id = v_referrer.id where id = v_me.id;
 
-  select surge_admin_apply_reward(
+  perform surge_admin_apply_reward(
     v_me.id, 7, 'referral_signup', 'Referred by ' || v_referrer.username
   );
-  select surge_admin_apply_reward(
+  perform surge_admin_apply_reward(
     v_referrer.id, 7, 'referral_signup', 'Referred ' || v_me.username,
     null, false, true
   );
-  select surge_admin_mark_invite_signed_up(v_referrer.id, v_me.auth_email);
+  perform surge_admin_mark_invite_signed_up(v_referrer.id, v_me.auth_email);
 
   return jsonb_build_object('ok', true, 'days', 7);
 end;
@@ -413,7 +413,7 @@ begin
     else 0
   end;
   if v_grant > 0 then
-    select surge_admin_apply_reward(v_me.id, v_grant, 'streak', v_streak::text || ' day streak');
+    perform surge_admin_apply_reward(v_me.id, v_grant, 'streak', v_streak::text || ' day streak');
   end if;
 
   return jsonb_build_object('ok', true, 'streak', v_streak);
@@ -459,7 +459,7 @@ begin
         and rr.last_active_date is not null
         and rr.last_active_date >= rr.created_at::date + 14
     loop
-      select surge_admin_apply_reward(
+      perform surge_admin_apply_reward(
         v_me.id, 30, 'referral_30d', 'Friend staying 30d: ' || v_username,
         'Rebel'
       );

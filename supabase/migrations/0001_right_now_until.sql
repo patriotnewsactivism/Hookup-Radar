@@ -3,4 +3,4 @@
 -- feed now read this timestamp instead. Additive only — safe to apply before
 -- the frontend deploy that references it.
 ALTER TABLE surge_users
-  ADD COLUMN right_now_until timestamptz;
+  ADD COLUMN IF NOT EXISTS right_now_until timestamptz;

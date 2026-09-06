@@ -100,7 +100,7 @@ begin
   set right_now_until = v_until, is_online = true, last_seen = now()
   where id = v_me.id;
 
-  select surge_admin_log_right_now(v_me.id, now());
+  perform surge_admin_log_right_now(v_me.id, now());
 
   return jsonb_build_object(
     'ok', true, 'active', true,
@@ -251,7 +251,7 @@ begin
     raise exception 'surge_grant_premium: invalid reward type';
   end if;
 
-  select surge_admin_apply_reward(v_me.id, v_fixed_days, p_type, p_reason);
+  perform surge_admin_apply_reward(v_me.id, v_fixed_days, p_type, p_reason);
   return jsonb_build_object('ok', true, 'days', v_fixed_days);
 end;
 $$;
