@@ -1,6 +1,6 @@
 # AGENTS.md
 
-SURGE — a mobile-first hookup app. Vite + React 19 + TypeScript + Tailwind v4 + shadcn/ui, managed with **Bun** (the only package manager; never introduce npm/yarn lockfiles). Prod deploys to Netlify (manual workflow), Vercel config also present.
+SURGE — a mobile-first hookup app. Vite + React 19 + TypeScript + Tailwind v4 + shadcn/ui, managed with **Bun** (the only package manager; never introduce npm/yarn lockfiles). Prod deploys to Vercel (owner-confirmed 2026-09-06); a Netlify workflow also exists but is not the deployment path.
 
 ## Architecture (read before editing)
 

@@ -9,6 +9,7 @@ import { GridPage } from './pages/GridPage';
 import { ChatListPage } from './pages/ChatListPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { SpotsPage } from './pages/SpotsPage';
+import CompanionPanel from './components/CompanionPanel';
 import { BottomNav } from './components/BottomNav';
 import { VerifyEmailBanner } from './components/VerifyEmailBanner';
 import { premium } from './lib/surgeApi';
@@ -60,6 +61,7 @@ function AppInner() {
         {view === 'chat-list' && <ChatListPage />}
         {view === 'profile'   && <ProfilePage />}
         {view === 'spots'     && <SpotsPage />}
+        {view === 'companion' && <CompanionPanel onNavigate={setView} />}
       </main>
       <BottomNav active={view} onChange={handleViewChange} unreadCount={unread} />
     </div>

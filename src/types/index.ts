@@ -114,7 +114,7 @@ export interface Conversation {
   is_typing?: boolean;
 }
 
-export type AppView = 'landing' | 'onboarding' | 'map' | 'grid' | 'chat-list' | 'chat' | 'profile' | 'settings' | 'premium' | 'spots';
+export type AppView = 'landing' | 'onboarding' | 'map' | 'grid' | 'chat-list' | 'chat' | 'profile' | 'settings' | 'premium' | 'spots' | 'companion';
 
 export const KINKS = [
   // Universal

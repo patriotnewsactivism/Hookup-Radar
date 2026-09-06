@@ -14,6 +14,7 @@ const tabs = [
   { id: 'grid'      as AppView, icon: Grid,          label: 'Explore' },
   { id: 'spots'     as AppView, icon: MapPin,        label: 'Spots'   },
   { id: 'chat-list' as AppView, icon: MessageCircle, label: 'Chats'   },
+  { id: 'companion' as AppView, icon: Sparkles,     label: 'AI'      },
   { id: 'profile'   as AppView, icon: User,          label: 'Me'      },
 ];
 
