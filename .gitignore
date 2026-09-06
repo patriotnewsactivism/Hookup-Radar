@@ -34,3 +34,4 @@ package-lock.json
 .vercel
 qa_*.mjs
 check_live.mjs
+.env*
