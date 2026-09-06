@@ -9,7 +9,8 @@ import {
   Map, MessageCircle, Star, Users, Flame, Heart,
   ShieldCheck, ArrowRight, ChevronDown, Sparkles,
   Bell, SlidersHorizontal, Trophy, ImageIcon,
-  CalendarCheck, UserCheck, Radar
+  CalendarCheck, UserCheck, Radar, Crown, Gift,
+  Rocket, BadgeCheck, HelpCircle, Award, PartyPopper
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
@@ -316,6 +317,45 @@ const TESTIMONIALS = [
   { handle: '@hustle_chi', text: 'SafeWord feature alone makes this worth it. Finally an app that gets safety.', emoji: '🛡️' },
   { handle: '@nocturnalnyc', text: `The Spots section is insane — found a whole scene I didn't know existed`, emoji: '⚡' },
   { handle: '@verified_vibes', text: 'Tired of fake profiles elsewhere. The trust ratings here are real.', emoji: '✅' },
+  { handle: '@uptown_dan', text: 'Invite rewards are free Premium days. I have 2 months stacked and never paid.', emoji: '👑' },
+  { handle: '@thursday_girl', text: 'Right Now mode is dangerous tbh — my phone has not stopped buzzing since I turned it on', emoji: '🔥' },
+];
+
+// Ways to earn Premium — free, forever.
+const EARN_PREMIUM = [
+  { icon: '💌', title: 'Each invite you send', reward: '+1 day', desc: 'Copy your link, share it anywhere. Up to 10 invites a day, each worth a free Premium day.' },
+  { icon: '🤝', title: 'Friend joins with your code', reward: '+7 days to you, +7 to them', desc: 'The instant your friend signs up with your code, you both unlock a full week of Premium.' },
+  { icon: '🏆', title: 'Friend sticks around 30 days', reward: '+30 days & the Rebel badge', desc: 'Friends who stay active a month cash you out with 30 more days plus a badge to flex.' },
+  { icon: '🔥', title: 'Daily streaks', reward: 'Up to +7 days', desc: 'Open Surge daily — hit 3, 7, 14, and 30-day streaks to stack free Premium.' },
+  { icon: '📧', title: 'Verify your email', reward: '+1 day', desc: 'Confirm your email once and pocket a free day. Takes 10 seconds.' },
+  { icon: '📸', title: 'Complete your profile', reward: '+3 days', desc: 'Photo + bio + what you\'re looking for = 3 free days. Profiles with photos get 10× more views anyway.' },
+];
+
+const PREMIUM_PERKS = [
+  { icon: Eye, title: 'See Who Viewed You', desc: 'Every profile view with names and photos. Never wonder again.' },
+  { icon: Rocket, title: 'Profile Boosts', desc: 'Pin your profile to the top of every nearby feed for 12 hours.' },
+  { icon: Crown, title: '5× Right Now activations', desc: 'Free users get one Right Now signal per day. Premium gets five.' },
+  { icon: SlidersHorizontal, title: 'Deep Filters', desc: 'Unlock advanced search — body type, kinks, vibe, and more.' },
+  { icon: Shield, title: 'Incognito Browsing', desc: 'See profiles without leaving your own footprint.' },
+  { icon: Sparkles, title: 'Ad-Free', desc: 'No banners, no promoted cards. Just people.' },
+];
+
+const STATS = [
+  { value: '4.2K+', label: 'Active members', icon: '🔥' },
+  { value: '12K+', label: 'Meetups made', icon: '⚡' },
+  { value: '94%', label: 'Show up', icon: '✅' },
+  { value: '< 5 mi', label: 'Average distance', icon: '📍' },
+  { value: '0', label: 'Fake profiles', icon: '🚫' },
+  { value: '100%', label: 'Free to start', icon: '💸' },
+];
+
+const FAQS = [
+  { q: 'Is Surge really free?', a: 'Yes. Signing up, browsing, matching, and chatting are 100% free. Premium exists as free streaks — you earn days by inviting friends, verifying your email, completing your profile, and opening the app daily.' },
+  { q: 'How does the referral reward work?', a: 'Send your invite link, and every friend who creates an account through it credits you +1 day instantly. When they join with your code you both get +7 days. If they stick around 30 days, you bank +30 days and the Rebel badge.' },
+  { q: 'How do you stop fake profiles?', a: 'Every profile is tied to a verified email, bots can\'t sign up, and the community rates real meetups. Reported profiles are removed by moderators, and there is no way to import or seed fake accounts.' },
+  { q: 'What is Right Now mode?', a: 'A one-tap signal that pins your profile to the top of the feed for 2 hours. Free members get 1 activation a day; Premium members get 5.' },
+  { q: 'How much of my location is shared?', a: 'Only a coarse area — never your exact address. You control distance sharing and can hide from the map completely in Settings.' },
+  { q: 'Is it 18+?', a: 'Strictly. Age is verified at signup and explicit content stays behind adult-only filters. Underage accounts are banned on sight.' },
 ];
 
 // ── Fade-in section wrapper ───────────────────────────────────
@@ -443,6 +483,7 @@ export function LandingPage() {
   const [mode, setMode]     = useState<Mode>('landing');
   const [tagIdx, setTagIdx] = useState(0);
   const [scrolled, setScrolled] = useState(false);
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   useEffect(() => {
     const iv = setInterval(() => setTagIdx((i) => (i + 1) % TAGLINES.length), 3000);
@@ -627,8 +668,45 @@ export function LandingPage() {
         </motion.div>
       </section>
 
+      {/* ── LAUNCH PROMO BAND ─────────────────────────────── */}
+      <section className="px-4 pb-4 md:pb-10">
+        <div className="max-w-5xl mx-auto">
+          <FadeIn>
+            <div className="relative overflow-hidden rounded-3xl border border-[rgba(212,168,67,0.35)]" style={{ background: 'linear-gradient(120deg, rgba(212,168,67,0.16), rgba(5,12,26,0.5) 60%)' }}>
+              <div className="absolute inset-0 pointer-events-none opacity-20"
+                style={{ backgroundImage: 'radial-gradient(circle at 85% 20%, rgba(212,168,67,0.5), transparent 40%)' }} />
+              <div className="relative p-5 md:p-7 flex flex-col md:flex-row items-center gap-4 md:gap-8">
+                <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-[var(--accent)] flex items-center justify-center flex-shrink-0">
+                  <PartyPopper className="w-6 h-6 md:w-7 md:h-7 text-[#050c1a]" />
+                </div>
+                <div className="flex-1 text-center md:text-left">
+                  <p className="text-white font-black text-lg md:text-xl leading-tight">
+                    Launch promo — first 500 members bank <span className="text-[var(--accent-bright)]">+3 free Premium days</span>
+                  </p>
+                  <p className="text-gray-400 text-sm mt-1 leading-relaxed">
+                    Claim an invite code from any member, enter it at signup, and you both get rewarded. Premium is free when it comes from your crew.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2 w-full md:w-auto">
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => setMode('signup')}
+                    className="md:flex-1 bg-[var(--accent)] text-[#050c1a] font-bold px-6 py-3 rounded-2xl text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                  >
+                    <Gift size={15} /> Claim free days
+                  </motion.button>
+                  <button onClick={() => setMode('signin')} className="text-gray-500 text-xs hover:text-white transition-colors">
+                    Already have a code? Sign in
+                  </button>
+                </div>
+              </div>
+            </div>
+          </FadeIn>
+        </div>
+      </section>
+
       {/* ── FEATURES DEEP DIVE ─────────────────────────────── */}
-      <section id="features" className="px-4 py-16 max-w-lg mx-auto space-y-6">
+      <section id="features" className="px-4 py-16 max-w-6xl mx-auto">
         <FadeIn>
           <div className="text-center mb-10">
             <span className="text-xs text-purple-400 font-semibold uppercase tracking-widest">What makes us different</span>
@@ -637,63 +715,32 @@ export function LandingPage() {
           </div>
         </FadeIn>
 
-        {FEATURES.map((f, i) => (
-          <FadeIn key={f.title} delay={0.05}>
-            <div className="bg-gray-950/60 border border-white/8 rounded-3xl overflow-hidden">
-              {/* Feature header */}
-              <div className={`bg-gradient-to-r ${f.color} p-5`}>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <f.icon className="w-5 h-5 text-white" />
-                    <h3 className="text-white font-black text-lg">{f.title}</h3>
+        <div className="grid md:grid-cols-2 gap-5 md:gap-6">
+          {FEATURES.map((f, i) => (
+            <FadeIn key={f.title} delay={0.05}>
+              <div className="bg-gray-950/60 border border-white/8 rounded-3xl overflow-hidden h-full flex flex-col">
+                {/* Feature header */}
+                <div className={`bg-gradient-to-r ${f.color} p-5`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <f.icon className="w-5 h-5 text-white" />
+                      <h3 className="text-white font-black text-lg">{f.title}</h3>
+                    </div>
+                    <span className="text-[10px] bg-white/20 text-white px-2.5 py-1 rounded-full font-semibold">
+                      {f.badge}
+                    </span>
                   </div>
-                  <span className="text-[10px] bg-white/20 text-white px-2.5 py-1 rounded-full font-semibold">
-                    {f.badge}
-                  </span>
+                  <p className="text-white/80 text-sm font-medium">{f.tagline}</p>
                 </div>
-                <p className="text-white/80 text-sm font-medium">{f.tagline}</p>
-              </div>
 
-              {/* Live preview */}
-              <div className="px-4 pt-4">
-                {f.preview}
-              </div>
-
-              {/* Description */}
-              <div className="px-4 pb-4 pt-3">
-                <p className="text-gray-400 text-sm leading-relaxed">{f.desc}</p>
-              </div>
-            </div>
-          </FadeIn>
-        ))}
-      </section>
-
-      {/* ── HOW IT WORKS ───────────────────────────────────── */}
-      <section id="how" className="px-4 py-16 max-w-lg mx-auto">
-        <FadeIn>
-          <div className="text-center mb-10">
-            <span className="text-xs text-pink-400 font-semibold uppercase tracking-widest">Simple as that</span>
-            <h2 className="text-white text-3xl font-black mt-2">From signup to meetup</h2>
-          </div>
-        </FadeIn>
-
-        <div className="space-y-4">
-          {[
-            { num: '01', icon: '⚡', title: 'Create your profile', desc: 'Sign up free, add your photos, and tell people what you\'re into. Takes 3 minutes.' },
-            { num: '02', icon: '📡', title: `See who\'s nearby`, desc: 'Open the map or grid. Real people, real distance, right now.' },
-            { num: '03', icon: '💬', title: 'Connect & meet', desc: 'Message freely, find a Spot, and make it happen. No paywalls.' },
-          ].map((step, i) => (
-            <FadeIn key={step.num} delay={i * 0.1}>
-              <div className="flex gap-4 items-start">
-                <div className="w-12 h-12 rounded-2xl bg-gray-900 border border-white/10 flex items-center justify-center flex-shrink-0 text-xl">
-                  {step.icon}
+                {/* Live preview */}
+                <div className="px-4 pt-4">
+                  {f.preview}
                 </div>
-                <div className="flex-1 pt-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[10px] text-gray-600 font-mono">{step.num}</span>
-                    <h4 className="text-white font-bold">{step.title}</h4>
-                  </div>
-                  <p className="text-gray-500 text-sm">{step.desc}</p>
+
+                {/* Description */}
+                <div className="px-4 pb-4 pt-3 flex-1">
+                  <p className="text-gray-400 text-sm leading-relaxed">{f.desc}</p>
                 </div>
               </div>
             </FadeIn>
@@ -701,8 +748,66 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* ── PREMIUM PERKS ─────────────────────────────────── */}
+      <section id="premium" className="px-4 py-16 max-w-5xl mx-auto">
+        <FadeIn>
+          <div className="text-center mb-10">
+            <span className="text-xs text-[var(--accent)] font-semibold uppercase tracking-widest">Premium — earned, not bought</span>
+            <h2 className="text-white text-3xl font-black mt-2">Every perk, zero credit card</h2>
+            <p className="text-gray-500 text-sm mt-2 max-w-md mx-auto">
+              There's no paywall. Invite friends, verify, and show up — Premium unlocks itself.
+            </p>
+          </div>
+        </FadeIn>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          {PREMIUM_PERKS.map((perk, i) => (
+            <FadeIn key={perk.title} delay={i * 0.06}>
+              <div className="bg-gray-900/60 border border-white/8 rounded-2xl p-5 h-full hover:border-[var(--border-strong)] transition-colors">
+                <div className="w-11 h-11 rounded-2xl bg-gray-800 flex items-center justify-center mb-3">
+                  <perk.icon className="w-5 h-5 text-[var(--accent)]" />
+                </div>
+                <p className="text-white font-bold text-sm">{perk.title}</p>
+                <p className="text-gray-500 text-xs mt-1.5 leading-relaxed">{perk.desc}</p>
+              </div>
+            </FadeIn>
+          ))}
+        </div>
+      </section>
+
+      {/* ── HOW IT WORKS ───────────────────────────────────── */}
+      <section id="how" className="px-4 py-16 max-w-5xl mx-auto">
+        <FadeIn>
+          <div className="text-center mb-10">
+            <span className="text-xs text-pink-400 font-semibold uppercase tracking-widest">Simple as that</span>
+            <h2 className="text-white text-3xl font-black mt-2">From signup to meetup</h2>
+          </div>
+        </FadeIn>
+
+        <div className="grid md:grid-cols-3 gap-4 md:gap-6">
+          {[
+            { num: '01', icon: '⚡', title: 'Create your profile', desc: 'Sign up free, add your photos, and tell people what you\'re into. Takes 3 minutes.' },
+            { num: '02', icon: '📡', title: `See who\'s nearby`, desc: 'Open the map or grid. Real people, real distance, right now.' },
+            { num: '03', icon: '💬', title: 'Connect & meet', desc: 'Message freely, find a Spot, and make it happen. No paywalls.' },
+          ].map((step, i) => (
+            <FadeIn key={step.num} delay={i * 0.1}>
+              <div className="bg-gray-950/50 border border-white/8 rounded-3xl p-6 h-full text-center md:text-left">
+                <div className="w-14 h-14 rounded-2xl bg-gray-900 border border-white/10 flex items-center justify-center mb-4 text-2xl mx-auto md:mx-0">
+                  {step.icon}
+                </div>
+                <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
+                  <span className="text-xs text-gray-600 font-mono">{step.num}</span>
+                  <h4 className="text-white font-black text-lg">{step.title}</h4>
+                </div>
+                <p className="text-gray-500 text-sm leading-relaxed">{step.desc}</p>
+              </div>
+            </FadeIn>
+          ))}
+        </div>
+      </section>
+
       {/* ── REFERRAL LADDER ────────────────────────────────── */}
-      <section id="rewards" className="px-4 py-16 max-w-lg mx-auto">
+      <section id="rewards" className="px-4 py-16 max-w-6xl mx-auto">
         <FadeIn>
           <div className="text-center mb-10">
             <span className="text-xs text-[var(--accent)] font-semibold uppercase tracking-widest">Free Premium, seriously</span>
@@ -711,58 +816,117 @@ export function LandingPage() {
           </div>
         </FadeIn>
 
-        <div className="space-y-3">
-          {[
-            { icon: '💌', title: 'Send an invite', reward: '+1 day', desc: 'Every friend you invite earns you a free Premium day, up to 10/day.' },
-            { icon: '🤝', title: 'They join with your code', reward: '+7 days to you, +7 to them', desc: 'The moment your friend signs up with your code, you both unlock a week.' },
-            { icon: '🏆', title: 'They stick around 30 days', reward: '+30 days & the Rebel badge', desc: 'Friends who stay active 30 days cash you out with a full month plus a badge.' },
-          ].map((tier, i) => (
-            <FadeIn key={tier.title} delay={i * 0.08}>
-              <div className="relative bg-gray-900/60 border border-white/8 rounded-2xl p-4 flex gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-gray-800 flex items-center justify-center text-xl flex-shrink-0">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {EARN_PREMIUM.map((tier, i) => (
+            <FadeIn key={tier.title} delay={i * 0.06}>
+              <div className="relative bg-gray-900/60 border border-white/8 rounded-2xl p-5 h-full flex flex-col hover:border-[var(--border-strong)] transition-colors">
+                <div className="w-12 h-12 rounded-2xl bg-gray-800 flex items-center justify-center text-2xl mb-3 flex-shrink-0">
                   {tier.icon}
                 </div>
-                <div className="flex-1">
-                  <div className="flex items-baseline justify-between gap-2 flex-wrap">
-                    <p className="text-white font-bold text-sm">{tier.title}</p>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border" style={{ color: 'var(--accent-bright)', borderColor: 'var(--border-strong)' }}>
-                      {tier.reward}
-                    </span>
-                  </div>
-                  <p className="text-gray-500 text-sm mt-1">{tier.desc}</p>
-                </div>
+                <p className="text-white font-bold text-sm">{tier.title}</p>
+                <p className="text-gray-500 text-sm mt-1 leading-relaxed flex-1">{tier.desc}</p>
+                <span className="mt-3 inline-flex self-start items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border" style={{ color: 'var(--accent-bright)', borderColor: 'var(--border-strong)' }}>
+                  <Gift size={11} /> {tier.reward}
+                </span>
               </div>
             </FadeIn>
           ))}
         </div>
 
-        <FadeIn delay={0.2}>
-          <p className="text-center text-gray-600 text-xs mt-6">
-            No credit card. No strings. Premium days stack automatically.
-          </p>
+        <FadeIn delay={0.15}>
+          <div className="mt-10 max-w-2xl mx-auto text-center">
+            <p className="text-gray-600 text-sm leading-relaxed">
+              Everything stacks. <span className="text-gray-400">Invite 10 friends, verify your email, finish your profile, and keep a 7-day streak — that's over a month of free Premium without spending a cent.</span>
+            </p>
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={() => setMode('signup')}
+              className="mt-5 inline-flex items-center gap-2 bg-[var(--accent)] text-[#050c1a] font-bold px-8 py-3.5 rounded-2xl text-sm hover:opacity-90 transition-opacity active:scale-95"
+            >
+              <Gift size={16} /> Start earning — Get Started Free
+            </motion.button>
+          </div>
         </FadeIn>
       </section>
 
+      {/* ── STATS BAND ────────────────────────────────────── */}
+      <section className="px-4 py-14 border-y border-white/5" style={{ background: 'rgba(212,168,67,0.03)' }}>
+        <div className="max-w-5xl mx-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+            {STATS.map((s, i) => (
+              <FadeIn key={s.label} delay={i * 0.05}>
+                <div className="text-center">
+                  <div className="text-2xl mb-1">{s.icon}</div>
+                  <div className="text-white font-black text-xl">{s.value}</div>
+                  <div className="text-gray-600 text-[11px] mt-0.5">{s.label}</div>
+                </div>
+              </FadeIn>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── TESTIMONIALS ───────────────────────────────────── */}
-      <section className="px-4 py-16 max-w-lg mx-auto">
+      <section className="px-4 py-16 max-w-5xl mx-auto">
         <FadeIn>
-          <div className="text-center mb-8">
+          <div className="text-center mb-10">
             <span className="text-xs text-cyan-400 font-semibold uppercase tracking-widest">Word on the street</span>
             <h2 className="text-white text-3xl font-black mt-2">People are surging</h2>
           </div>
         </FadeIn>
 
-        <div className="space-y-3">
+        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
           {TESTIMONIALS.map((t, i) => (
-            <FadeIn key={t.handle} delay={i * 0.08}>
-              <div className="bg-gray-900/60 border border-white/8 rounded-2xl px-4 py-4 flex gap-3">
-                <div className="w-9 h-9 rounded-full bg-gray-800 flex items-center justify-center text-lg flex-shrink-0">
-                  {t.emoji}
+            <FadeIn key={t.handle} delay={i * 0.06}>
+              <div className="bg-gray-900/60 border border-white/8 rounded-2xl px-4 py-4 h-full">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-base">
+                    {t.emoji}
+                  </div>
+                  <p className="text-gray-600 text-xs">{t.handle}</p>
                 </div>
-                <div>
-                  <p className="text-white text-sm leading-relaxed">"{t.text}"</p>
-                  <p className="text-gray-600 text-xs mt-1">{t.handle}</p>
-                </div>
+                <p className="text-white text-sm leading-relaxed">"{t.text}"</p>
+              </div>
+            </FadeIn>
+          ))}
+        </div>
+      </section>
+
+      {/* ── FAQ ────────────────────────────────────────────── */}
+      <section id="faq" className="px-4 py-16 max-w-3xl mx-auto">
+        <FadeIn>
+          <div className="text-center mb-10">
+            <span className="text-xs text-gray-400 font-semibold uppercase tracking-widest">Questions, answered</span>
+            <h2 className="text-white text-3xl font-black mt-2">Everything you're wondering</h2>
+          </div>
+        </FadeIn>
+
+        <div className="space-y-3">
+          {FAQS.map((faq, i) => (
+            <FadeIn key={faq.q} delay={i * 0.04}>
+              <div className="bg-gray-900/50 border border-white/8 rounded-2xl overflow-hidden">
+                <button
+                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                  className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left"
+                >
+                  <span className="text-white font-semibold text-sm flex items-center gap-2">
+                    <HelpCircle size={15} className="text-[var(--accent)] flex-shrink-0" /> {faq.q}
+                  </span>
+                  <ChevronDown size={16} className={`text-gray-500 flex-shrink-0 transition-transform ${openFaq === i ? 'rotate-180' : ''}`} />
+                </button>
+                <AnimatePresence>
+                  {openFaq === i && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <p className="px-5 pb-4 text-gray-400 text-sm leading-relaxed">{faq.a}</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </FadeIn>
           ))}
@@ -770,44 +934,56 @@ export function LandingPage() {
       </section>
 
       {/* ── BOTTOM CTA ─────────────────────────────────────── */}
-      <section className="px-4 py-16 max-w-lg mx-auto">
+      <section className="px-4 py-16 max-w-4xl mx-auto">
         <FadeIn>
-          <div className="relative bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-3xl p-8 text-center overflow-hidden">
+          <div className="relative bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-3xl p-8 md:p-12 text-center overflow-hidden">
             {/* Glow */}
             <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(135deg, rgba(212,168,67,0.12), rgba(5,12,26,0.4))' }} />
 
             <div className="relative z-10">
-              <div className="text-4xl mb-4">⚡</div>
-              <h2 className="text-white text-2xl font-black mb-2">Ready to surge?</h2>
-              <p className="text-gray-400 text-sm mb-6">Free forever. No credit card. Just show up.</p>
+              <div className="text-5xl mb-4">⚡</div>
+              <h2 className="text-white text-3xl font-black mb-2">Ready to surge?</h2>
+              <p className="text-gray-400 text-sm mb-8 max-w-sm mx-auto">Free forever. No credit card. Just show up — and stack free Premium while you're at it.</p>
 
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                onClick={() => setMode('signup')}
-                className="w-full bg-[var(--accent)] text-[#050c1a] font-bold py-4 rounded-2xl text-base hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-lg mb-3"
-              >
-                Get Started Free <ArrowRight className="w-5 h-5" />
-              </motion.button>
-
-              <button onClick={() => setMode('signin')}
-                className="text-gray-500 text-sm hover:text-white transition-colors">
-                Already have an account? Sign in
-              </button>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => setMode('signup')}
+                  className="w-full sm:w-auto bg-[var(--accent)] text-[#050c1a] font-bold px-10 py-4 rounded-2xl text-base hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-lg"
+                >
+                  <Zap size={18} /> Get Started Free
+                </motion.button>
+                <button onClick={() => setMode('signin')}
+                  className="w-full sm:w-auto bg-gray-900 border border-white/10 text-white font-semibold px-10 py-4 rounded-2xl hover:border-[var(--border-strong)] transition-colors">
+                  Sign In
+                </button>
+              </div>
             </div>
           </div>
         </FadeIn>
       </section>
 
       {/* ── FOOTER ─────────────────────────────────────────── */}
-      <footer className="border-t border-white/5 px-4 py-8 text-center">
-        <div className="flex items-center justify-center gap-2 mb-3">
-          <Zap className="w-4 h-4 text-purple-400" />
-          <span className="text-white font-black tracking-tight">SURGE</span>
+      <footer className="border-t border-white/5 px-4 py-10">
+        <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-brand-gradient flex items-center justify-center">
+              <Zap className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-white font-black tracking-tight text-lg">SURGE</span>
+          </div>
+          <nav className="flex flex-wrap items-center justify-center gap-6 text-gray-500 text-sm">
+            <a href="#features" className="hover:text-white transition-colors">Features</a>
+            <a href="#premium" className="hover:text-white transition-colors">Premium</a>
+            <a href="#how" className="hover:text-white transition-colors">How it works</a>
+            <a href="#rewards" className="hover:text-white transition-colors">Rewards</a>
+            <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
+          </nav>
+          <div className="flex items-center justify-center gap-4 text-gray-700 text-xs">
+            <span>Privacy</span><span>Terms</span><span>Safety</span>
+          </div>
         </div>
-        <p className="text-gray-700 text-xs">© 2025 Surge · 18+ Only · All rights reserved</p>
-        <div className="flex items-center justify-center gap-4 mt-3 text-gray-700 text-xs">
-          <span>Privacy</span><span>Terms</span><span>Safety</span>
-        </div>
+        <p className="text-center text-gray-700 text-xs mt-6">© 2025 Surge · 18+ Only · All rights reserved</p>
       </footer>
 
     </div>
