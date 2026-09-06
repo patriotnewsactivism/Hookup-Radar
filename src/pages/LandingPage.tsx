@@ -611,6 +611,48 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* ── REFERRAL LADDER ────────────────────────────────── */}
+      <section className="px-4 py-16 max-w-lg mx-auto">
+        <FadeIn>
+          <div className="text-center mb-10">
+            <span className="text-xs text-[var(--accent)] font-semibold uppercase tracking-widest">Free Premium, seriously</span>
+            <h2 className="text-white text-3xl font-black mt-2">Invite friends. Earn days.</h2>
+            <p className="text-gray-500 text-sm mt-2">Premium shouldn't cost you — it should come from your crew.</p>
+          </div>
+        </FadeIn>
+
+        <div className="space-y-3">
+          {[
+            { icon: '💌', title: 'Send an invite', reward: '+1 day', desc: 'Every friend you invite earns you a free Premium day, up to 10/day.' },
+            { icon: '🤝', title: 'They join with your code', reward: '+7 days to you, +7 to them', desc: 'The moment your friend signs up with your code, you both unlock a week.' },
+            { icon: '🏆', title: 'They stick around 30 days', reward: '+30 days & the Rebel badge', desc: 'Friends who stay active 30 days cash you out with a full month plus a badge.' },
+          ].map((tier, i) => (
+            <FadeIn key={tier.title} delay={i * 0.08}>
+              <div className="relative bg-gray-900/60 border border-white/8 rounded-2xl p-4 flex gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-gray-800 flex items-center justify-center text-xl flex-shrink-0">
+                  {tier.icon}
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                    <p className="text-white font-bold text-sm">{tier.title}</p>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border" style={{ color: 'var(--accent-bright)', borderColor: 'var(--border-strong)' }}>
+                      {tier.reward}
+                    </span>
+                  </div>
+                  <p className="text-gray-500 text-sm mt-1">{tier.desc}</p>
+                </div>
+              </div>
+            </FadeIn>
+          ))}
+        </div>
+
+        <FadeIn delay={0.2}>
+          <p className="text-center text-gray-600 text-xs mt-6">
+            No credit card. No strings. Premium days stack automatically.
+          </p>
+        </FadeIn>
+      </section>
+
       {/* ── TESTIMONIALS ───────────────────────────────────── */}
       <section className="px-4 py-16 max-w-lg mx-auto">
         <FadeIn>

@@ -45,6 +45,52 @@ export interface SurgeUser {
   safe_contact_name?: string;
   safe_contact_info?: string;
   distance?: number; // computed
+
+  // ── Referral economy (Phase 3) ──────────────────────────────
+  referral_code?: string;
+  referrer_id?: string;
+  total_invites_sent?: number;
+  total_referrals?: number;
+  total_free_days_earned?: number;
+  current_streak?: number;
+  last_active_date?: string;
+  milestone_checked_at?: string;
+  boost_expires_at?: string;
+  badges?: string[];
+  email_confirmed_at?: string;
+}
+
+export interface RewardEvent {
+  id: string;
+  user_id?: string;
+  type: 'invite_send' | 'referral_signup' | 'referral_30d' | 'streak' | 'verified_email' | 'profile_complete' | 'boost';
+  value_days: number;
+  reason?: string;
+  granted_at: string;
+}
+
+export interface ReferralMilestone {
+  key: 'invite_send' | 'referral_signup' | 'referral_30d';
+  label: string;
+  reward: string;
+  complete: boolean;
+}
+
+export interface ReferralStatsResponse {
+  referral_code: string;
+  referral_url: string;
+  total_invites_sent: number;
+  total_referrals: number;
+  signed_up: number;
+  stayed_30_days: number;
+  total_free_days_earned: number;
+  milestones: ReferralMilestone[];
+  recent_rewards: RewardEvent[];
+}
+
+export interface ProfileViewEntry {
+  viewed_at: string;
+  viewer_id: string;
 }
 
 export interface Message {

@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import clsx from 'clsx';
 import { PhotoUpload } from '../components/PhotoUpload';
 import { AlbumManager } from '../components/AlbumManager';
+import { InviteFriends } from '../components/InviteFriends';
 
 type Tab = 'profile' | 'photos' | 'settings' | 'premium';
 
@@ -258,6 +259,9 @@ export function ProfilePage() {
                 </button>
               </div>
             ))}
+            <button onClick={() => setTab('premium')} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-gray-900 border border-[var(--border-strong)] text-[var(--accent)] font-semibold hover:opacity-90 transition-opacity">
+              <Crown size={16} /> Invite friends — earn Premium days
+            </button>
             <button onClick={async () => { await signOut(); }} className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-gray-900 border border-white/10 text-red-400 font-semibold hover:bg-red-950/30 transition-colors">
               <LogOut size={18} /> Sign Out
             </button>
@@ -267,21 +271,33 @@ export function ProfilePage() {
         {/* PREMIUM TAB */}
         {tab === 'premium' && (
           <div className="space-y-4">
-            <p className="text-gray-400 text-sm">Premium features coming soon!</p>
-            <div className="space-y-2">
-              {[
-                { icon: '👁️', label: 'See Who Viewed You' },
-                { icon: '🥷', label: 'Incognito Browsing' },
-                { icon: '🎛️', label: 'Advanced Filters' },
-                { icon: '🚀', label: 'Profile Boost' },
-                { icon: '🚫', label: 'Ad-Free' },
-              ].map(({ icon, label }) => (
-                <div key={label} className="flex items-center gap-3 bg-gray-900 rounded-2xl p-4 border border-white/5">
-                  <span className="text-2xl">{icon}</span>
-                  <p className="text-white text-sm font-semibold">{label}</p>
-                  <Zap size={14} className="text-yellow-500 ml-auto flex-shrink-0" />
-                </div>
-              ))}
+            {isPremiumActive ? (
+              <p className="text-[var(--text-secondary)] text-xs flex items-center gap-1.5">
+                <Crown size={12} className="text-[var(--accent)]" /> Premium active{profile.premium_until ? ` until ${new Date(profile.premium_until).toLocaleDateString()}` : ''}
+              </p>
+            ) : (
+              <p className="text-[var(--text-secondary)] text-xs">
+                Premium is free right now — invite friends to earn days.
+              </p>
+            )}
+            <InviteFriends />
+            <div className="border-t border-white/5 pt-4">
+              <p className="text-gray-400 text-sm font-semibold">Premium perks</p>
+              <div className="mt-2 space-y-2">
+                {[
+                  { icon: '👁️', label: 'See Who Viewed You' },
+                  { icon: '🥷', label: 'Incognito Browsing' },
+                  { icon: '🎛️', label: 'Advanced Filters' },
+                  { icon: '🚀', label: 'Profile Boost' },
+                  { icon: '🚫', label: 'Ad-Free' },
+                ].map(({ icon, label }) => (
+                  <div key={label} className="flex items-center gap-3 bg-gray-900 rounded-2xl p-4 border border-white/5 opacity-80">
+                    <span className="text-2xl">{icon}</span>
+                    <p className="text-white text-sm font-semibold">{label}</p>
+                    <Zap size={14} className="text-yellow-500 ml-auto flex-shrink-0" />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}

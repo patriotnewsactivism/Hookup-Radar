@@ -49,8 +49,10 @@ async function requireMyProfile(): Promise<any> {
 
 // Strips fields that must never leave the server for a profile that isn't
 // the caller's own — mirrors convex/security.ts toPublicProfile().
+// Referral codes, referrer links, emails and reward counters are private to
+// the viewer's own row and must NEVER appear in public selects.
 const PUBLIC_USER_COLUMNS =
-  'id, username, display_name, age, bio, gender, orientation, lifestyle, position, height, weight, body_type, ethnicity, health_status, looking_for, kinks, tags, fantasies, photo_url, photo_urls, lat, lng, last_seen, is_online, is_anonymous, is_verified, is_premium, premium_until, free_trial_until, right_now_until, profile_views, show_distance, show_on_map, created_at';
+  'id, username, display_name, age, bio, gender, orientation, lifestyle, position, height, weight, body_type, ethnicity, health_status, looking_for, kinks, tags, fantasies, photo_url, photo_urls, lat, lng, last_seen, is_online, is_anonymous, is_verified, is_premium, premium_until, free_trial_until, right_now_until, boost_expires_at, badges, is_demo, profile_views, show_distance, show_on_map, created_at';
 
 function toPublicProfile(user: any, distanceFeet?: number) {
   const pub: any = { ...user };
@@ -171,12 +173,16 @@ export const users = {
     }
     const showOnMap = args.show_on_map === true && (lat !== 0 || lng !== 0);
 
-    const { auth_id: _a, auth_email: _b, lat: _lat, lng: _lng, show_on_map: _som, ...profileFields } = args;
+    // A friend's referral code is consumed server-side after the profile
+    // exists; it must never be written to the users row itself.
+    const referralCode = String(args.referral_code || '').trim().toLowerCase();
+    const { auth_id: _a, auth_email: _b, lat: _lat, lng: _lng, show_on_map: _som, referral_code: _rc, ...profileFields } = args;
     const insertRow = {
       ...profileFields,
       username,
       auth_id: authId,
       auth_email: authUser?.user?.email ?? null,
+      email_confirmed_at: authUser?.user?.email_confirmed_at ?? null,
       lat,
       lng,
       last_seen: nowIso(),
@@ -194,7 +200,22 @@ export const users = {
 
     const { data, error } = await supabase.from('surge_users').insert(insertRow).select('*').single();
     if (error) throw error;
-    return { ...data, id: data.id };
+
+    // Apply the friend's referral code — best-effort, never blocks signup.
+    let referralGranted = false;
+    if (referralCode) {
+      try {
+        const { data: referralResult, error: referralError } = await supabase.rpc(
+          'surge_handle_referral_signup',
+          { p_code: referralCode }
+        );
+        if (!referralError && referralResult?.ok) referralGranted = true;
+      } catch {
+        // Non-fatal: the profile is live either way.
+      }
+    }
+
+    return { ...data, id: data.id, referral_granted: referralGranted };
   },
 
   async update(args: { id: string } & Record<string, any>) {
@@ -259,6 +280,15 @@ export const users = {
       is_read: false,
       created_at: nowIso(),
     });
+    // Feed the "Who viewed you" surface (premium gating lands in Phase 4).
+    try {
+      await supabase.from('surge_profile_views').insert({
+        viewer_id: viewer.id,
+        viewed_id: args.id,
+      });
+    } catch {
+      // Best-effort history recording.
+    }
   },
 };
 
@@ -868,5 +898,131 @@ export const account = {
     // profile and all owned data are fully removed; sign the user out so the
     // now-profile-less auth session doesn't linger client-side.
     await supabase.auth.signOut();
+  },
+};
+
+// ── referrals ────────────────────────────────────────────────────────
+const APP_ORIGIN = window.location.origin;
+
+function functionsBaseUrl(): string {
+  const viteUrl = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL as string | undefined;
+  if (viteUrl) return viteUrl.replace(/\/$/, '');
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+  return `${supabaseUrl ?? ''}/functions/v1`.replace(/\/$/, '');
+}
+
+async function rpcJson<T = any>(fn: string, params: Record<string, any> = {}): Promise<T> {
+  const { data, error } = await supabase.rpc(fn, params);
+  if (error) throw error;
+  return data as T;
+}
+
+export const referrals = {
+  /** The user's own referral code — lazily generated server-side if absent. */
+  async myCode(): Promise<string> {
+    const me = await requireMyProfile();
+    if (me.referral_code) return me.referral_code as string;
+    return String(await rpcJson('surge_ensure_referral_code'));
+  },
+
+  /** Full hub payload: codes, counters, milestones, recent rewards. */
+  async stats(): Promise<any> {
+    return rpcJson<any>('surge_referral_stats', {});
+  },
+
+  /** Redeem a friend's code — server-credited (+7 days both sides). */
+  async applyRefCode(code: string): Promise<{ ok: boolean; days?: number; reason?: string }> {
+    return rpcJson<{ ok: boolean; days?: number; reason?: string }>(
+      'surge_handle_referral_signup',
+      { p_code: code }
+    );
+  },
+
+  /**
+   * Record a share-channel invite (copy / SMS / WhatsApp / mailto / email).
+   * Server enforces the 10/day cap and grants +1 day per invite.
+   */
+  async recordInviteSent(channel: 'share' | 'sms' | 'whatsapp' | 'mailto' | 'email'): Promise<{ ok: boolean; days?: number; reason?: string }> {
+    return rpcJson<{ ok: boolean; days?: number; reason?: string }>(
+      'surge_record_invite',
+      { p_channel: channel }
+    );
+  },
+
+  /** Send a branded email invite via the `send-invite` edge function. */
+  async sendEmailInvite(args: { email: string; message?: string }): Promise<{ ok: boolean; days?: number; ref_url?: string }> {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) throw new Error('Not signed in');
+    const response = await fetch(`${functionsBaseUrl()}/send-invite`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string,
+      },
+      body: JSON.stringify({ recipient_email: args.email, message: args.message }),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error || 'Invite send failed');
+    return body;
+  },
+
+  /** Latest "who viewed you" entries — premium gating lands in Phase 4. */
+  async getMyViewers(limit = 30): Promise<{ viewed_at: string; viewer_id: string }[]> {
+    return rpcJson<{ viewed_at: string; viewer_id: string }[]>('surge_get_views', { p_limit: limit });
+  },
+
+  /** Share text + link with a ref code. */
+  buildShare({ code, message }: { code: string; message?: string }): { text: string; url: string } {
+    const url = `${APP_ORIGIN}/?ref=${encodeURIComponent(code)}`;
+    const text = message ||
+      'Join me on SURGE — real people, real close. Use my code for 7 free Premium days ⚡';
+    return { text, url };
+  },
+
+  /** Per-channel deep links. */
+  buildChannelLinks({ code, text }: { code: string; text: string }): {
+    share: string;
+    sms: string;
+    whatsapp: string;
+    mailto: string;
+  } {
+    const { url } = referrals.buildShare({ code });
+    const encodedText = encodeURIComponent(`${text}\n${url}`);
+    return {
+      share: url,
+      sms: `sms:?&body=${encodedText}`,
+      whatsapp: `https://wa.me/?text=${encodedText}`,
+      mailto: `mailto:?subject=${encodeURIComponent(`You're invited to SURGE ⚡`)}&body=${encodedText}`,
+    };
+  },
+};
+
+// ── premium ─────────────────────────────────────────────────────────
+export const premium = {
+  /** Current premium state — self row only. */
+  async status(): Promise<{ active: boolean; until?: string }> {
+    const me = await requireMyProfile();
+    const until = me.premium_until as string | null;
+    return { active: !!me.is_premium, until: until || undefined };
+  },
+
+  /**
+   * Server-guarded grant for a reward type. The DB only honors types with
+   * one-shot semantics (verified_email, profile_complete, streak) and the
+   * ledger keeps grants idempotent — safe to call repeatedly.
+   */
+  async grant(args: { days: number; type: 'verified_email' | 'profile_complete' | 'streak'; reason?: string }): Promise<{ ok: boolean; days: number }> {
+    return rpcJson<{ ok: boolean; days: number }>('surge_grant_premium', {
+      p_days: args.days,
+      p_type: args.type,
+      p_reason: args.reason ?? null,
+    });
+  },
+
+  /** Daily activity ping — powers streaks (extended in Phase 4). */
+  async touchActivity(): Promise<{ ok: boolean; streak?: number }> {
+    return rpcJson<{ ok: boolean; streak?: number }>('surge_record_streak');
   },
 };

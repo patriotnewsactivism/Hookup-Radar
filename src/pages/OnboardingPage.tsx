@@ -189,7 +189,9 @@ export function OnboardingPage() {
 
       const hasLocation = typeof form.lat === 'number' && typeof form.lng === 'number';
 
-      await createUser({
+      const refParam = new URLSearchParams(window.location.search).get('ref');
+
+      const created = await createUser({
         username: form.username,
         display_name: form.display_name,
         age: form.age,
@@ -212,7 +214,12 @@ export function OnboardingPage() {
         lat: hasLocation ? form.lat : 0,
         lng: hasLocation ? form.lng : 0,
         show_on_map: hasLocation && form.show_on_map,
+        referral_code: refParam ?? undefined,
       });
+
+      if (created?.referral_granted) {
+        toast.success('Referral applied — +7 free Premium days from your friend 🔥');
+      }
 
       if (uploaded && photoFile) {
         try {

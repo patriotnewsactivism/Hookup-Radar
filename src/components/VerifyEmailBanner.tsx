@@ -1,9 +1,11 @@
 // Non-blocking banner for signed-in users whose email isn't confirmed yet.
-// Instant access is kept — this only nudges verification (reward handled by
-// the reward ledger once the referral economy ships).
-import React, { useState } from 'react';
+// Instant access is kept — this only nudges verification. The moment the
+// email is confirmed, the server grants +1 free Premium day exactly once
+// (surge_grant_premium is ledger-guarded, so this effect is safe to re-run).
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabaseClient';
+import { premium } from '../lib/surgeApi';
 import { toast } from 'sonner';
 import { MailCheck, RefreshCw, X } from 'lucide-react';
 
@@ -11,6 +13,22 @@ export function VerifyEmailBanner() {
   const { authUser } = useAuth();
   const [dismissed, setDismissed] = useState(false);
   const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    if (!authUser || authUser.emailConfirmed !== true) return;
+    let active = true;
+    (async () => {
+      try {
+        const result = await premium.grant({ days: 1, type: 'verified_email', reason: 'Email confirmed' });
+        if (active && result.ok) toast.success('Email verified — +1 free Premium day ⚡');
+      } catch {
+        // Server-guarded and idempotent; next mount retries quietly.
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [authUser?.id, authUser?.emailConfirmed]);
 
   if (dismissed) return null;
   if (!authUser || authUser.emailConfirmed !== false) return null;
