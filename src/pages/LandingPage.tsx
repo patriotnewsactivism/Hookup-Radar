@@ -26,13 +26,6 @@ const TAGLINES = [
   'All welcome. No judgment.',
 ];
 
-const STATS = [
-  { value: '4.2K', label: 'Active Users',  icon: '🔥' },
-  { value: '12K+', label: 'Meetups Made',  icon: '⚡' },
-  { value: '94%',  label: 'Real Profiles', icon: '✅' },
-  { value: '< 5mi',label: 'Avg Distance',  icon: '📍' },
-];
-
 const FEATURES = [
   {
     icon: Radar,
@@ -345,8 +338,10 @@ function AuthForm({ mode, onModeChange }: { mode: 'signin' | 'signup'; onModeCha
   const { signIn, signUp } = useAuth();
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading]   = useState(false);
   const [showPw, setShowPw]     = useState(false);
+  const [loading, setLoading]   = useState(false);
+  const [showRef, setShowRef]   = useState(false);
+  const [refCode, setRefCode]   = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -396,6 +391,26 @@ function AuthForm({ mode, onModeChange }: { mode: 'signin' | 'signup'; onModeCha
             </button>
           </div>
 
+          {mode === 'signup' && (
+            <div>
+              <button type="button" onClick={() => setShowRef((p) => !p)} className="text-xs text-gray-500 hover:text-white transition-colors">
+                {showRef ? '− Hide' : '+ Have an invite code? (optional)'}
+              </button>
+              {showRef && (
+                <input
+                  type="text" placeholder="Friend's invite code" value={refCode}
+                  onChange={(e) => {
+                    const v = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+                    setRefCode(v);
+                    if (v) sessionStorage.setItem('surge_ref', v);
+                    else sessionStorage.removeItem('surge_ref');
+                  }}
+                  className="mt-2 w-full bg-gray-900 border border-white/20 text-white placeholder-gray-600 rounded-2xl px-4 py-3 focus:outline-none focus:border-[var(--accent)] transition-colors uppercase"
+                />
+              )}
+            </div>
+          )}
+
           <button type="submit" disabled={loading}
             className="w-full bg-[var(--accent)] text-[#050c1a] font-bold py-3.5 rounded-2xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50">
             {loading
@@ -427,10 +442,17 @@ function AuthForm({ mode, onModeChange }: { mode: 'signin' | 'signup'; onModeCha
 export function LandingPage() {
   const [mode, setMode]     = useState<Mode>('landing');
   const [tagIdx, setTagIdx] = useState(0);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     const iv = setInterval(() => setTagIdx((i) => (i + 1) % TAGLINES.length), 3000);
-    return () => clearInterval(iv);
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => {
+      clearInterval(iv);
+      window.removeEventListener('scroll', onScroll);
+    };
   }, []);
 
   if (mode !== 'landing') {
@@ -448,8 +470,35 @@ export function LandingPage() {
   return (
     <div className="min-h-screen bg-black text-white overflow-x-hidden">
 
+      {/* ── NAV (scroll-aware) ─────────────────────────────── */}
+      <header className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${scrolled ? 'bg-black/85 backdrop-blur-md border-b border-white/8 py-2.5' : 'bg-transparent py-4'}`}>
+        <div className="max-w-5xl mx-auto px-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+            <div className="w-7 h-7 rounded-lg bg-brand-gradient flex items-center justify-center">
+              <Zap className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-white font-black text-lg tracking-tight">SURGE</span>
+          </div>
+
+          <nav className="hidden md:flex items-center gap-6 text-sm text-gray-400">
+            <a href="#features" className="hover:text-white transition-colors">Features</a>
+            <a href="#how" className="hover:text-white transition-colors">How it works</a>
+            <a href="#rewards" className="hover:text-white transition-colors">Rewards</a>
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <button onClick={() => setMode('signin')} className="text-sm font-semibold px-3 py-1.5 rounded-xl text-gray-300 hover:text-white hover:bg-white/5 transition-colors">
+              Sign In
+            </button>
+            <button onClick={() => setMode('signup')} className="text-sm font-bold px-4 py-1.5 rounded-xl active:scale-95 transition-transform" style={{ background: 'var(--accent)', color: '#050c1a' }}>
+              Get Started Free
+            </button>
+          </div>
+        </div>
+      </header>
+
       {/* ── HERO ─────────────────────────────────────────────── */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center px-4 py-16 overflow-hidden">
+      <section className="relative min-h-screen flex flex-col items-center justify-center px-4 py-24 overflow-hidden">
 
         {/* Background glow */}
         <div className="absolute inset-0 pointer-events-none">
@@ -461,71 +510,112 @@ export function LandingPage() {
         <div className="absolute inset-0 opacity-[0.04]"
           style={{ backgroundImage: 'linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
 
-        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
-          className="relative z-10 text-center max-w-lg w-full"
-        >
-          {/* Logo */}
-          <div className="flex items-center justify-center gap-2 mb-6">
-            <div className="w-12 h-12 rounded-2xl bg-brand-gradient flex items-center justify-center shadow-lg">
-              <Zap className="w-7 h-7 text-white" />
+        <div className="relative z-10 w-full max-w-5xl md:grid md:grid-cols-2 md:gap-12 md:items-center">
+
+          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
+            className="text-center md:text-left max-w-lg mx-auto md:mx-0"
+          >
+            {/* Logo */}
+            <div className="flex items-center justify-center gap-2 mb-6 md:justify-start">
+              <div className="w-12 h-12 rounded-2xl bg-brand-gradient flex items-center justify-center shadow-lg">
+                <Zap className="w-7 h-7 text-white" />
+              </div>
+              <span className="text-white font-black text-4xl tracking-tight">SURGE</span>
             </div>
-            <span className="text-white font-black text-4xl tracking-tight">SURGE</span>
-          </div>
 
-          {/* Rotating tagline */}
-          <div className="h-10 mb-4 overflow-hidden">
-            <AnimatePresence mode="wait">
-              <motion.p key={tagIdx}
-                initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -20, opacity: 0 }}
-                transition={{ duration: 0.4 }}
-                className="text-2xl font-bold"
-                style={{ background: 'linear-gradient(90deg, var(--accent-bright), var(--accent))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
+            {/* Rotating tagline */}
+            <div className="h-10 mb-4 overflow-hidden">
+              <AnimatePresence mode="wait">
+                <motion.p key={tagIdx}
+                  initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -20, opacity: 0 }}
+                  transition={{ duration: 0.4 }}
+                  className="text-2xl font-bold"
+                  style={{ background: 'linear-gradient(90deg, var(--accent-bright), var(--accent))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
+                >
+                  {TAGLINES[tagIdx]}
+                </motion.p>
+              </AnimatePresence>
+            </div>
+
+            <p className="text-gray-400 text-base mb-8 leading-relaxed">
+              The hookup app built for real people who want real connections — tonight, nearby, on your terms.
+            </p>
+
+            {/* CTA buttons */}
+            <div className="space-y-3">
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                onClick={() => setMode('signup')}
+                className="w-full bg-[var(--accent)] text-[#050c1a] font-bold py-4 rounded-2xl text-base hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-lg"
               >
-                {TAGLINES[tagIdx]}
-              </motion.p>
-            </AnimatePresence>
-          </div>
+                <Zap className="w-5 h-5" /> Get Started Free
+              </motion.button>
+              <button onClick={() => setMode('signin')}
+                className="w-full bg-gray-900/80 border border-white/10 text-white font-semibold py-3.5 rounded-2xl hover:border-[var(--border-strong)] transition-colors">
+                Sign In
+              </button>
+            </div>
 
-          <p className="text-gray-400 text-base mb-8 leading-relaxed">
-            The hookup app built for real people who want real connections — tonight, nearby, on your terms.
-          </p>
+            {/* Trust badges */}
+            <div className="flex items-center justify-center gap-4 mt-6 text-gray-600 text-xs md:justify-start flex-wrap">
+              <span className="flex items-center gap-1"><Lock className="w-3 h-3" /> E2E Encrypted</span>
+              <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> Moderated</span>
+              <span className="flex items-center gap-1"><UserCheck className="w-3 h-3" /> 18+ Only</span>
+            </div>
+          </motion.div>
 
-          {/* Stats row */}
-          <div className="grid grid-cols-4 gap-2 mb-8">
-            {STATS.map((s, i) => (
-              <motion.div key={s.label}
-                initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 + i * 0.1 }}
-                className="bg-gray-900/60 border border-white/8 rounded-2xl p-2 text-center"
-              >
-                <div className="text-lg">{s.icon}</div>
-                <div className="text-white font-black text-sm">{s.value}</div>
-                <div className="text-gray-600 text-[9px] leading-tight">{s.label}</div>
-              </motion.div>
-            ))}
-          </div>
-
-          {/* CTA buttons */}
-          <div className="space-y-3">
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={() => setMode('signup')}
-              className="w-full bg-[var(--accent)] text-[#050c1a] font-bold py-4 rounded-2xl text-base hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-lg"
-            >
-              <Zap className="w-5 h-5" /> Get Started Free
-            </motion.button>
-            <button onClick={() => setMode('signin')}
-              className="w-full bg-gray-900/80 border border-white/10 text-white font-semibold py-3.5 rounded-2xl hover:border-[var(--border-strong)] transition-colors">
-              Sign In
-            </button>
-          </div>
-
-          {/* Trust badges */}
-          <div className="flex items-center justify-center gap-4 mt-6 text-gray-600 text-xs">
-            <span className="flex items-center gap-1"><Lock className="w-3 h-3" /> E2E Encrypted</span>
-            <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> No Data Selling</span>
-            <span className="flex items-center gap-1"><UserCheck className="w-3 h-3" /> 18+ Only</span>
-          </div>
-        </motion.div>
+          {/* Live feed mock panel (desktop) */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }}
+            className="hidden md:block"
+          >
+            <div className="relative rounded-3xl border border-[rgba(212,168,67,0.22)] bg-[var(--bg-elevated)] p-5 shadow-2xl">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-white font-bold text-sm flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" /> Live nearby
+                </p>
+                <span className="text-[10px] px-2 py-1 rounded-full border" style={{ borderColor: 'var(--border-strong)', color: 'var(--accent)' }}>3 min ago</span>
+              </div>
+              <div className="relative h-56 rounded-2xl overflow-hidden border border-white/8"
+                style={{ background: 'radial-gradient(ellipse at 30% 25%, rgba(212,168,67,0.14), rgba(5,12,26,0.9) 70%)' }}>
+                <div className="absolute inset-0 opacity-20"
+                  style={{ backgroundImage: 'linear-gradient(rgba(212,168,67,0.35) 1px, transparent 1px), linear-gradient(90deg, rgba(212,168,67,0.35) 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
+                {/* Dots */}
+                <div className="absolute left-[22%] top-[35%] w-3 h-3 rounded-full bg-[var(--accent)] shadow-[0_0_12px_var(--accent)]" />
+                <div className="absolute left-[58%] top-[55%] w-3 h-3 rounded-full bg-[var(--accent)] shadow-[0_0_12px_var(--accent)]" />
+                <div className="absolute left-[72%] top-[28%] w-3 h-3 rounded-full bg-[var(--accent)] shadow-[0_0_12px_var(--accent)]" />
+                <div className="absolute left-[42%] top-[70%] w-3 h-3 rounded-full bg-[var(--accent)] shadow-[0_0_12px_var(--accent)]" />
+                <div className="absolute left-[64%] top-[78%] w-3 h-3 rounded-full bg-red-500 shadow-[0_0_12px_red]" title="Right Now" />
+                <div className="absolute left-[38%] top-[45%] w-3 h-3 rounded-full bg-[var(--accent)] shadow-[0_0_12px_var(--accent)]" />
+                <div className="absolute left-[12%] top-[62%] w-3 h-3 rounded-full bg-[var(--accent)] shadow-[0_0_12px_var(--accent)]" />
+                {/* You */}
+                <div className="absolute left-[48%] top-[42%] w-4 h-4 rounded-full border-2 border-white bg-[var(--accent-bright)] shadow-[0_0_16px_var(--accent)]" />
+                <span className="absolute left-[calc(48%+20px)] top-[40%] text-[10px] text-gray-300 font-semibold">You</span>
+                {/* Distance chip */}
+                <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur px-3 py-1.5 rounded-xl text-[10px] text-gray-300 border border-white/10">
+                  8 people within 2 miles 🟢
+                </div>
+                <div className="absolute bottom-3 right-3 bg-black/70 backdrop-blur px-3 py-1.5 rounded-xl text-[10px] text-red-300 border border-white/10">
+                  🔥 Right Now: 1
+                </div>
+              </div>
+              {/* Fake profile strip */}
+              <div className="flex gap-2 mt-4">
+                {[
+                  { emoji: '🎉', name: 'Marcus, 28', meta: '0.2 mi · Online' },
+                  { emoji: '🔥', name: 'Drew, 31', meta: '0.5 mi · Right Now' },
+                  { emoji: '😈', name: 'Alex, 26', meta: '1.1 mi · Online' },
+                ].map((p) => (
+                  <div key={p.name} className="flex-1 bg-gray-900 border border-white/8 rounded-2xl p-3 text-left">
+                    <div className="text-lg mb-1">{p.emoji}</div>
+                    <p className="text-white text-xs font-bold truncate">{p.name}</p>
+                    <p className="text-gray-600 text-[10px] truncate">{p.meta}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        </div>
 
         {/* Scroll hint */}
         <motion.div
@@ -538,7 +628,7 @@ export function LandingPage() {
       </section>
 
       {/* ── FEATURES DEEP DIVE ─────────────────────────────── */}
-      <section className="px-4 py-16 max-w-lg mx-auto space-y-6">
+      <section id="features" className="px-4 py-16 max-w-lg mx-auto space-y-6">
         <FadeIn>
           <div className="text-center mb-10">
             <span className="text-xs text-purple-400 font-semibold uppercase tracking-widest">What makes us different</span>
@@ -579,7 +669,7 @@ export function LandingPage() {
       </section>
 
       {/* ── HOW IT WORKS ───────────────────────────────────── */}
-      <section className="px-4 py-16 max-w-lg mx-auto">
+      <section id="how" className="px-4 py-16 max-w-lg mx-auto">
         <FadeIn>
           <div className="text-center mb-10">
             <span className="text-xs text-pink-400 font-semibold uppercase tracking-widest">Simple as that</span>
@@ -612,7 +702,7 @@ export function LandingPage() {
       </section>
 
       {/* ── REFERRAL LADDER ────────────────────────────────── */}
-      <section className="px-4 py-16 max-w-lg mx-auto">
+      <section id="rewards" className="px-4 py-16 max-w-lg mx-auto">
         <FadeIn>
           <div className="text-center mb-10">
             <span className="text-xs text-[var(--accent)] font-semibold uppercase tracking-widest">Free Premium, seriously</span>

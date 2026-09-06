@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { users, media as mediaApi } from '../lib/surgeApi';
+import { users, media as mediaApi, referrals } from '../lib/surgeApi';
 import { GENDERS, ORIENTATIONS, POSITIONS, LOOKING_FOR, KINKS, BODY_TYPES, ETHNICITIES, HEALTH_STATUSES, LIFESTYLES } from '../types';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -45,11 +45,100 @@ function ChipSelect({ options, selected, onToggle, color = 'purple', single = fa
   );
 }
 
+function CelebrationScreen({ loading, onContinue }: { loading: boolean; onContinue: () => void }) {
+  const [stats, setStats] = useState<{ referral_code?: string; total_free_days_earned?: number } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    referrals.stats().then((s) => {
+      if (active) setStats(s);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  const copyCode = async () => {
+    if (!stats?.referral_code) return;
+    try {
+      await navigator.clipboard.writeText(stats.referral_code);
+      toast.success('Code copied — share it with a friend');
+    } catch {
+      toast.error('Could not copy');
+    }
+  };
+
+  const shareInvite = async () => {
+    const text = 'Join me on SURGE — real people, real close. Use my code for 7 free Premium days ⚡';
+    const url = `${window.location.origin}/?ref=${encodeURIComponent(stats?.referral_code || '')}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Join me on SURGE', text, url });
+        await referrals.recordInviteSent('share').catch(() => {});
+        return;
+      } catch { /* fall through */ }
+    }
+    try {
+      await navigator.clipboard.writeText(`${text} ${url}`);
+      await referrals.recordInviteSent('share').catch(() => {});
+      toast.success('Invite link copied');
+    } catch {
+      toast.error('Could not share');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center px-5 py-10">
+      <div className="w-full max-w-sm text-center">
+        <div className="w-16 h-16 mx-auto rounded-2xl bg-brand-gradient flex items-center justify-center shadow-lg mb-5">
+          <Zap className="w-8 h-8 text-white" fill="white" />
+        </div>
+        <h1 className="text-3xl font-black text-white">
+          You're in,{' '}
+          <span className="text-transparent bg-clip-text" style={{ backgroundImage: 'linear-gradient(90deg, var(--accent-bright), var(--accent))' }}>let's go</span>
+        </h1>
+        <p className="text-gray-400 text-sm mt-2 leading-relaxed">
+          Your profile is live. Say hi to the people near you — real ones, no games.
+        </p>
+
+        {/* Referral mini-hub */}
+        <div className="mt-6 bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-2xl p-4 text-left">
+          <p className="text-white text-sm font-bold mb-1">Invite friends — you both get 7 days ⚡</p>
+          <p className="text-[var(--text-secondary)] text-xs mb-3">Premium is free when it comes from your crew.</p>
+          {stats?.referral_code ? (
+            <>
+              <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 mb-3">
+                <span className="font-mono text-lg font-black tracking-widest text-[var(--accent-bright)] uppercase flex-1">{stats.referral_code}</span>
+                <button onClick={copyCode} className="text-xs font-bold px-3 py-1.5 rounded-lg text-[#050c1a]" style={{ background: 'var(--accent)' }}>Copy</button>
+              </div>
+              <button onClick={shareInvite} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-[var(--border-strong)] text-white text-sm font-semibold active:scale-95">
+                Share my invite link
+              </button>
+            </>
+          ) : (
+            <p className="text-[var(--text-muted)] text-xs">Preparing your invite code…</p>
+          )}
+        </div>
+
+        <button
+          onClick={onContinue}
+          disabled={loading}
+          className="mt-6 w-full flex items-center justify-center gap-2 font-bold py-4 rounded-2xl active:scale-95 disabled:opacity-50"
+          style={{ background: 'var(--accent)', color: '#050c1a' }}
+        >
+          {loading
+            ? <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin inline-block" />
+            : <><Zap size={16} fill="currentColor" /> Enter Surge</>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function OnboardingPage() {
   const { authUser, refreshProfile } = useAuth();
   const createUser = users.create;
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [celebrating, setCelebrating] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -189,7 +278,13 @@ export function OnboardingPage() {
 
       const hasLocation = typeof form.lat === 'number' && typeof form.lng === 'number';
 
-      const refParam = new URLSearchParams(window.location.search).get('ref');
+      // Invite code: high-water mark is the session-stored one (set from the
+      // landing signup form); the URL ref is the link-share path.
+      const refParam =
+        sessionStorage.getItem('surge_ref') ||
+        new URLSearchParams(window.location.search).get('ref') ||
+        '';
+      sessionStorage.removeItem('surge_ref');
 
       const created = await createUser({
         username: form.username,
@@ -236,13 +331,30 @@ export function OnboardingPage() {
         }
       }
 
-      await refreshProfile();
-      toast.success('Welcome to Surge 🔥');
+      // Hold the welcome screen until the user taps Continue — refreshing the
+      // profile now would flip App to the grid and skip the celebration.
+      toast.success(created?.referral_granted ? 'Welcome to Surge 🔥 +7 free days!' : 'Welcome to Surge 🔥');
+      setLoading(false);
+      setCelebrating(true);
     } catch (e: any) {
       toast.error(e.message || 'Failed to create profile');
       setLoading(false);
     }
   };
+
+  const finishCelebration = async () => {
+    setLoading(true);
+    try {
+      await refreshProfile();
+    } catch (e: any) {
+      toast.error(e.message || 'Could not enter Surge');
+      setLoading(false);
+    }
+  };
+
+  if (celebrating) {
+    return <CelebrationScreen loading={loading} onContinue={finishCelebration} />;
+  }
 
   const steps = [
     // STEP 0 — Basics
