@@ -8,12 +8,13 @@ import { UserProfileModal } from '../components/UserProfileModal';
 import { RightNowFeed } from '../components/RightNowFeed';
 import { SurgeUser } from '../types';
 import { Crosshair, Layers } from 'lucide-react';
+import { isRightNowActive } from '../lib/rightNow';
 
 const CARTO_DARK = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
 
 function userIcon(user: SurgeUser, isMe: boolean) {
   const online = user.is_online;
-  const rightNow = user.looking_for?.includes('Right Now');
+  const rightNow = isRightNowActive(user);
   const border = isMe ? '#a855f7' : rightNow ? '#ef4444' : online ? '#22c55e' : '#6b7280';
   const bg = user.photo_url && !user.is_anonymous
     ? `url(${user.photo_url})`

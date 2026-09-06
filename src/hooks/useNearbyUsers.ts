@@ -35,7 +35,8 @@ export function useNearbyUsers(
   myLat: number | null,
   myLng: number | null,
   filters?: Filters,
-  myOrientation?: Orientation
+  myOrientation?: Orientation,
+  includeDemo = false
 ) {
   const [refreshToken, setRefreshToken] = useState(0);
   // Every mounted instance of this hook (GridPage, MapPage, RightNowFeed, etc.
@@ -116,27 +117,19 @@ export function useNearbyUsers(
       results = results.filter((user) => user.is_verified);
     }
 
-    const bots = getBotsForArea(myLat, myLng, myOrientation).map((bot) => ({
-      ...bot,
-      distance: haversineDistance(myLat, myLng, bot.lat, bot.lng),
-    })) as SurgeUser[];
+    // Demo profiles are opt-in only (default OFF), appear solely when there
+    // are zero real users nearby, and are never interleaved into the real
+    // grid. They are labeled as demo everywhere they render.
+    if (includeDemo && rawUsers.length === 0) {
+      const demos = getBotsForArea(myLat, myLng, myOrientation).map((bot) => ({
+        ...bot,
+        distance: haversineDistance(myLat, myLng, bot.lat, bot.lng),
+      })) as SurgeUser[];
+      return demos.sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0));
+    }
 
-    const combined = interleave(results, bots, results.length < 5 ? 1 : 4);
-    combined.sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0));
-    return combined;
-  }, [rawUsers, myLat, myLng, filters, myOrientation]);
+    return results;
+  }, [rawUsers, myLat, myLng, filters, myOrientation, includeDemo]);
 
   return { users, loading, refetch: () => setRefreshToken((t) => t + 1) };
-}
-
-function interleave(real: SurgeUser[], bots: SurgeUser[], every: number): SurgeUser[] {
-  if (bots.length === 0) return real;
-  const result: SurgeUser[] = [];
-  let botIdx = 0;
-  real.forEach((user, index) => {
-    result.push(user);
-    if ((index + 1) % every === 0 && botIdx < bots.length) result.push(bots[botIdx++]);
-  });
-  while (botIdx < bots.length) result.push(bots[botIdx++]);
-  return result;
 }

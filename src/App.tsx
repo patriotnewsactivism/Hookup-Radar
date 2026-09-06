@@ -10,6 +10,7 @@ import { ChatListPage } from './pages/ChatListPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { SpotsPage } from './pages/SpotsPage';
 import { BottomNav } from './components/BottomNav';
+import { VerifyEmailBanner } from './components/VerifyEmailBanner';
 import { AppView } from './types';
 
 function AppInner() {
@@ -46,6 +47,7 @@ function AppInner() {
     <div className="h-screen flex flex-col overflow-hidden"
       style={{ background: 'var(--bg-base)' }}>
       <main className="flex-1 overflow-hidden">
+        <VerifyEmailBanner />
         {view === 'map'       && <MapPage />}
         {view === 'grid'      && <GridPage />}
         {view === 'chat-list' && <ChatListPage />}

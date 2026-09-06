@@ -19,24 +19,9 @@ interface Props {
 
 const EMOJI_QUICK = ['😍', '🔥', '👋', '😈', '💦', '❤️', '👅', '🙈', '😏', '💪'];
 
-function TypingIndicator() {
-  return (
-    <div className="flex items-end gap-2 justify-start">
-      <div className="flex-shrink-0">
-        <div className="w-6 h-6 rounded-full bg-gray-700" />
-      </div>
-      <div className="bg-gray-800 rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-1">
-        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-      </div>
-    </div>
-  );
-}
-
 export function ChatPage({ otherUser, conversationId, onBack }: Props) {
   const { profile, updateProfile } = useAuth();
-  const { messages, sendMessage, botTyping } = useMessages(conversationId, profile?.id ?? null);
+  const { messages, sendMessage } = useMessages(conversationId, profile?.id ?? null);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
@@ -49,7 +34,7 @@ export function ChatPage({ otherUser, conversationId, onBack }: Props) {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, botTyping]);
+  }, [messages]);
 
   const hasMessages = messages.length > 0;
   const handleIcebreaker = (t: string) => setText(t);
@@ -123,11 +108,9 @@ export function ChatPage({ otherUser, conversationId, onBack }: Props) {
             {otherUser.is_anonymous ? '🥷 Anonymous' : otherUser.display_name || otherUser.username}
           </p>
           <p className="text-xs text-gray-500">
-            {botTyping
-              ? <span className="text-purple-400 animate-pulse">typing…</span>
-              : otherUser.is_online
-                ? '🟢 Online'
-                : `Last seen ${formatDistanceToNow(new Date(otherUser.last_seen || Date.now()), { addSuffix: true })}`
+            {otherUser.is_online
+              ? '🟢 Online'
+              : `Last seen ${formatDistanceToNow(new Date(otherUser.last_seen || Date.now()), { addSuffix: true })}`
             }
           </p>
         </div>
@@ -189,7 +172,6 @@ export function ChatPage({ otherUser, conversationId, onBack }: Props) {
           );
         })}
 
-        {botTyping && <TypingIndicator />}
         <div ref={bottomRef} />
       </div>
 

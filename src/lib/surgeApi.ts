@@ -2,6 +2,7 @@
 // Function names/shapes deliberately mirror the old Convex functions so
 // consuming hooks/components need minimal changes beyond the import path.
 import { supabase } from './supabaseClient';
+import { rightNowExpiry } from './rightNow';
 
 // ── helpers ──────────────────────────────────────────────────────────
 function nowIso() {
@@ -49,7 +50,7 @@ async function requireMyProfile(): Promise<any> {
 // Strips fields that must never leave the server for a profile that isn't
 // the caller's own — mirrors convex/security.ts toPublicProfile().
 const PUBLIC_USER_COLUMNS =
-  'id, username, display_name, age, bio, gender, orientation, lifestyle, position, height, weight, body_type, ethnicity, health_status, looking_for, kinks, tags, fantasies, photo_url, photo_urls, lat, lng, last_seen, is_online, is_anonymous, is_verified, is_premium, premium_until, free_trial_until, profile_views, show_distance, show_on_map, created_at';
+  'id, username, display_name, age, bio, gender, orientation, lifestyle, position, height, weight, body_type, ethnicity, health_status, looking_for, kinks, tags, fantasies, photo_url, photo_urls, lat, lng, last_seen, is_online, is_anonymous, is_verified, is_premium, premium_until, free_trial_until, right_now_until, profile_views, show_distance, show_on_map, created_at';
 
 function toPublicProfile(user: any, distanceFeet?: number) {
   const pub: any = { ...user };
@@ -125,6 +126,19 @@ export const users = {
       .map((u: any) => toPublicProfile(u, haversineFeet(me.lat, me.lng, u.lat, u.lng)));
   },
 
+  async checkUsername(args: { username: string }) {
+    const username = String(args.username || '').trim().toLowerCase();
+    if (!/^[a-z0-9_]{3,32}$/.test(username)) {
+      return { available: false, reason: 'invalid' };
+    }
+    const { data } = await supabase
+      .from('surge_users')
+      .select('id')
+      .eq('username', username)
+      .maybeSingle();
+    return { available: !data };
+  },
+
   async create(args: Record<string, any>) {
     const authId = await requireAuthUserId();
     const { data: existing } = await supabase
@@ -147,14 +161,24 @@ export const users = {
 
     const { data: authUser } = await supabase.auth.getUser();
 
-    const { auth_id: _a, auth_email: _b, lat: _lat, lng: _lng, ...profileFields } = args;
+    // Location is opt-in: 0,0 + show_on_map=false means "skip, set later".
+    let lat = 0;
+    let lng = 0;
+    if (Number.isFinite(args.lat) && Number.isFinite(args.lng)) {
+      assertCoordinates(args.lat, args.lng);
+      lat = args.lat;
+      lng = args.lng;
+    }
+    const showOnMap = args.show_on_map === true && (lat !== 0 || lng !== 0);
+
+    const { auth_id: _a, auth_email: _b, lat: _lat, lng: _lng, show_on_map: _som, ...profileFields } = args;
     const insertRow = {
       ...profileFields,
       username,
       auth_id: authId,
       auth_email: authUser?.user?.email ?? null,
-      lat: 0,
-      lng: 0,
+      lat,
+      lng,
       last_seen: nowIso(),
       is_online: true,
       is_anonymous: false,
@@ -165,7 +189,7 @@ export const users = {
       favorite_users: [],
       profile_views: 0,
       show_distance: true,
-      show_on_map: false,
+      show_on_map: showOnMap,
     };
 
     const { data, error } = await supabase.from('surge_users').insert(insertRow).select('*').single();
@@ -196,6 +220,19 @@ export const users = {
     const { error } = await supabase
       .from('surge_users')
       .update({ lat: args.lat, lng: args.lng, is_online: true, last_seen: nowIso() })
+      .eq('id', args.id);
+    if (error) throw error;
+  },
+
+  async setRightNow(args: { id: string; active: boolean }) {
+    const me = await requireMyProfile();
+    if (me.id !== args.id) throw new Error('Not authorized');
+    const patch = args.active
+      ? { right_now_until: rightNowExpiry() }
+      : { right_now_until: null };
+    const { error } = await supabase
+      .from('surge_users')
+      .update(patch)
       .eq('id', args.id);
     if (error) throw error;
   },
@@ -289,30 +326,6 @@ export const messages = {
         created_at: nowIso(),
       });
     }
-    return { ...data, id: data.id };
-  },
-
-  async sendBotReply(args: { conversation_id: string; bot_id: string; receiver_id: string; text: string }) {
-    const me = await requireMyProfile();
-    if (!args.bot_id.startsWith('bot_')) throw new Error('Invalid bot');
-    if (args.receiver_id !== me.id) throw new Error('Not authorized');
-    if (args.conversation_id !== expectedConversationId(args.bot_id, me.id)) throw new Error('Invalid conversation');
-    const text = (args.text || '').trim();
-    if (!text || text.length > 5000) throw new Error('Invalid message');
-    const { data, error } = await supabase
-      .from('surge_messages')
-      .insert({
-        conversation_id: args.conversation_id,
-        sender_id: args.bot_id,
-        receiver_id: me.id,
-        text,
-        status: 'sent',
-        is_deleted: false,
-        created_date: nowIso(),
-      })
-      .select('*')
-      .single();
-    if (error) throw error;
     return { ...data, id: data.id };
   },
 

@@ -13,14 +13,17 @@ import { RightNowFeed } from '../components/RightNowFeed';
 import { SafeWord } from '../components/SafeWord';
 import { NotificationPanel } from '../components/NotificationPanel'; // ← swapped in
 import { SurgeUser } from '../types';
+import { isRightNowActive } from '../lib/rightNow';
 import { SlidersHorizontal, RefreshCw, Zap, Shield } from 'lucide-react';
+import { toast } from 'sonner';
 import { AnimatePresence } from 'framer-motion';
 
 export function GridPage() {
   const { profile } = useAuth();
   const { lat, lng } = useLocation(profile?.id);
   const [filters, setFilters] = useState<Filters>({});
-  const { users, loading, refetch } = useNearbyUsers(lat, lng, filters, profile?.orientation);
+  const [showDemo, setShowDemo] = useState(false);
+  const { users, loading, refetch } = useNearbyUsers(lat, lng, filters, profile?.orientation, showDemo);
   const [selectedUser, setSelectedUser] = useState<SurgeUser | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [showSafeWord, setShowSafeWord] = useState(false);
@@ -31,8 +34,30 @@ export function GridPage() {
     return true;
   });
 
-  const rightNowUsers = filteredUsers.filter(u => u.looking_for?.includes('Right Now'));
-  const otherUsers    = filteredUsers.filter(u => !u.looking_for?.includes('Right Now'));
+  const realCount = filteredUsers.filter(u => !u.is_demo).length;
+  const demoCount = filteredUsers.filter(u => u.is_demo).length;
+
+  const rightNowUsers = filteredUsers.filter(u => isRightNowActive(u));
+  const otherUsers    = filteredUsers.filter(u => !isRightNowActive(u));
+
+  const shareInvite = async () => {
+    const text = 'Join me on SURGE — real people, real close. Hookups without the games.';
+    const url = `${window.location.origin}${window.location.pathname}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Join me on SURGE', text, url });
+        return;
+      } catch {
+        // Fall through to the clipboard fallback below.
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(`${text} ${url}`);
+      toast.success('Invite link copied to clipboard');
+    } catch {
+      toast.error('Could not share the invite link');
+    }
+  };
 
   const insertAds = (arr: SurgeUser[], every = 8) => {
     const result: (SurgeUser | 'ad')[] = [];
@@ -70,7 +95,7 @@ export function GridPage() {
           <Zap className="w-5 h-5 text-purple-400" />
           <span className="text-white font-black text-lg tracking-tight">SURGE</span>
           <span className="text-gray-600 text-xs ml-1">
-            {loading ? 'Scanning…' : `${filteredUsers.length} nearby`}
+            {loading ? 'Scanning…' : demoCount > 0 ? `${demoCount} demo profiles` : `${realCount} nearby`}
           </span>
         </div>
 
@@ -163,6 +188,19 @@ export function GridPage() {
         {/* Banner ad (non-premium) */}
         {!profile?.is_premium && <AdCard />}
 
+        {/* Demo area notice — visible whenever demo profiles are filling the grid */}
+        {demoCount > 0 && (
+          <div className="flex items-center gap-2 mx-4 my-3 bg-[var(--bg-muted)] border border-[var(--border-strong)] rounded-xl px-3 py-2.5">
+            <span className="text-xs font-bold text-[var(--accent)]">DEMO AREA</span>
+            <span className="text-xs text-[var(--text-secondary)] flex-1 leading-snug">
+              Sample profiles for preview — not real people, and they never message back.
+            </span>
+            <button onClick={() => setShowDemo(false)} className="text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+              Hide
+            </button>
+          </div>
+        )}
+
         {/* Right Now live feed */}
         <RightNowFeed onSelectUser={setSelectedUser} />
 
@@ -229,21 +267,52 @@ export function GridPage() {
         )}
 
         {/* Empty state */}
-        {!loading && filteredUsers.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 px-8 text-center">
+        {!loading && realCount === 0 && demoCount === 0 && (
+          <div className="flex flex-col items-center justify-center py-10 px-6 text-center">
             <div className="text-4xl mb-4">⚡</div>
             <p className="text-white font-bold mb-2">No one nearby yet</p>
             <p className="text-gray-600 text-sm">
-              Surge is growing — share your referral link to bring friends in, or expand your search area in filters
+              Surge is growing — invite friends to earn free Premium days, or widen your search in filters
             </p>
             {activeFilterCount > 0 && (
               <button
                 onClick={() => setFilters({})}
-                className="mt-4 text-purple-400 text-sm underline"
+                className="mt-3 text-purple-400 text-sm underline"
               >
                 Clear filters
               </button>
             )}
+
+            {/* Referral CTA — invites earn Premium days */}
+            <div className="w-full max-w-xs mt-5 bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-2xl p-4 text-left">
+              <p className="text-white font-bold text-sm flex items-center gap-2">
+                <span className="text-lg">💌</span> Invite friends — earn Premium
+              </p>
+              <p className="text-[var(--text-secondary)] text-xs mt-1.5 leading-snug">
+                Earn 7 free Premium days for every friend who joins with your invite. Takes 10 seconds to share.
+              </p>
+              <button
+                onClick={shareInvite}
+                className="w-full mt-3 bg-[var(--accent)] text-[#050c1a] font-bold py-2.5 rounded-xl text-sm active:scale-95"
+              >
+                Invite now
+              </button>
+            </div>
+
+            {/* Demo profiles — explicitly opt-in, never verified */}
+            <div className="flex items-center gap-3 mt-4 w-full max-w-xs">
+              <button
+                onClick={() => setShowDemo(true)}
+                aria-pressed={showDemo}
+                className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${showDemo ? 'bg-[var(--accent)]' : 'bg-gray-700'}`}
+              >
+                <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${showDemo ? 'translate-x-5' : 'translate-x-0.5'}`} />
+              </button>
+              <div className="flex-1 text-left">
+                <p className="text-white text-sm font-medium">Fill grid with demo profiles</p>
+                <p className="text-[var(--text-muted)] text-xs">Sample profiles labeled DEMO — not real people</p>
+              </div>
+            </div>
           </div>
         )}
       </div>

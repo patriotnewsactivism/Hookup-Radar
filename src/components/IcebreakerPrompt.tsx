@@ -4,6 +4,7 @@
  */
 import React from 'react';
 import { SurgeUser } from '../types';
+import { isRightNowActive } from '../lib/rightNow';
 import { Zap } from 'lucide-react';
 
 interface Props {
@@ -15,8 +16,8 @@ function buildPrompts(them: SurgeUser): string[] {
   const prompts: string[] = [];
   const name = them.display_name || 'you';
 
-  // Based on looking_for
-  if (them.looking_for?.includes('Right Now') || them.looking_for?.includes('Tonight')) {
+  // Based on looking_for / Right Now signal
+  if (isRightNowActive(them) || them.looking_for?.includes('Tonight')) {
     prompts.push(`Hey ${name}, still looking to meet up tonight?`);
     prompts.push(`What part of town are you in right now?`);
   }
@@ -67,7 +68,7 @@ export function IcebreakerPrompt({ them, onSelect }: Props) {
           <button
             key={i}
             onClick={() => onSelect(p)}
-            className="text-xs text-gray-300 bg-gray-900 border border-white/10 rounded-xl px-3 py-1.5 hover:border-purple-500 hover:text-white active:scale-95 transition-all text-left"
+            className="text-xs text-gray-300 bg-gray-900 border border-white/10 rounded-xl px-3 py-1.5 hover:border-[var(--accent)] hover:text-white active:scale-95 transition-all text-left"
           >
             {p}
           </button>

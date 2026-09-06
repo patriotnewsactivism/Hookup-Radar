@@ -39,14 +39,14 @@ const FEATURES = [
     title: 'Live Radar Map',
     tagline: `See exactly who's nearby right now`,
     desc: `Real-time GPS map shows verified users around you. Filter by distance, vibe, and what they're into. No guessing — just real people, real close.`,
-    color: 'from-purple-600 to-violet-800',
-    accent: 'text-purple-400',
+    color: 'from-[var(--accent)] to-[var(--accent-muted)]',
+    accent: 'text-[var(--accent)]',
     badge: '📡 Live',
     preview: (
-      <div className="relative h-44 bg-gray-950 rounded-2xl overflow-hidden border border-purple-500/20">
+      <div className="relative h-44 bg-gray-950 rounded-2xl overflow-hidden border border-[rgba(212,168,67,0.16)]">
         {/* Fake map grid */}
         <div className="absolute inset-0 opacity-10"
-          style={{ backgroundImage: 'linear-gradient(#7c3aed22 1px, transparent 1px), linear-gradient(90deg, #7c3aed22 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+          style={{ backgroundImage: 'linear-gradient(rgba(212,168,67,0.22) 1px, transparent 1px), linear-gradient(90deg, rgba(212,168,67,0.22) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
         {/* Pulse rings */}
         {[1,2,3].map(i => (
           <motion.div key={i}
@@ -146,11 +146,11 @@ const FEATURES = [
     title: 'Unrestricted Chat',
     tagline: 'Talk freely — no paywall, no censorship',
     desc: 'Send messages, photos, and videos with no limits. Reply to specific messages, see read receipts, and keep your conversations private with optional auto-delete.',
-    color: 'from-pink-600 to-rose-700',
-    accent: 'text-pink-400',
+    color: 'from-[var(--accent)] to-[var(--accent-muted)]',
+    accent: 'text-[var(--accent)]',
     badge: '💬 Free',
     preview: (
-      <div className="h-44 bg-gray-950 rounded-2xl border border-pink-500/20 overflow-hidden p-3 flex flex-col justify-end gap-1.5">
+      <div className="h-44 bg-gray-950 rounded-2xl border border-[rgba(212,168,67,0.16)] overflow-hidden p-3 flex flex-col justify-end gap-1.5">
         {[
           { text: 'hey, you nearby?', mine: false, delay: 0 },
           { text: 'yeah like 0.8mi away 👀', mine: true, delay: 0.3 },
@@ -291,11 +291,11 @@ const FEATURES = [
     title: 'Smart Notifications',
     tagline: 'Know when it matters, not every second',
     desc: 'Get pinged when someone views your profile, when a match comes online nearby, or when a new event drops at your favorite Spot. Intelligent, not spammy.',
-    color: 'from-violet-600 to-purple-800',
-    accent: 'text-violet-400',
+    color: 'from-[var(--accent)] to-[var(--accent-muted)]',
+    accent: 'text-[var(--accent-bright)]',
     badge: '🔔 Smart',
     preview: (
-      <div className="h-44 bg-gray-950 rounded-2xl border border-violet-500/20 overflow-hidden p-3 space-y-2">
+      <div className="h-44 bg-gray-950 rounded-2xl border border-[rgba(212,168,67,0.16)] overflow-hidden p-3 space-y-2">
         {[
           { icon: '👀', title: 'Someone checked you out', time: 'just now', color: 'text-cyan-400' },
           { icon: '⚡', title: 'Alex is 0.4mi away now', time: '2m ago', color: 'text-green-400' },
@@ -310,7 +310,7 @@ const FEATURES = [
               <p className={`text-xs font-medium truncate ${n.color}`}>{n.title}</p>
               <p className="text-[10px] text-gray-600">{n.time}</p>
             </div>
-            <div className="w-2 h-2 rounded-full bg-violet-500 flex-shrink-0" />
+            <div className="w-2 h-2 rounded-full bg-[var(--accent)] flex-shrink-0" />
           </motion.div>
         ))}
       </div>
@@ -382,13 +382,13 @@ function AuthForm({ mode, onModeChange }: { mode: 'signin' | 'signup'; onModeCha
           <input
             type="email" placeholder="Email address" value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full bg-gray-900 border border-white/20 text-white placeholder-gray-600 rounded-2xl px-4 py-3.5 focus:outline-none focus:border-purple-500 transition-colors"
+            className="w-full bg-gray-900 border border-white/20 text-white placeholder-gray-600 rounded-2xl px-4 py-3.5 focus:outline-none focus:border-[var(--accent)] transition-colors"
           />
           <div className="relative">
             <input
               type={showPw ? 'text' : 'password'} placeholder="Password" value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-gray-900 border border-white/20 text-white placeholder-gray-600 rounded-2xl px-4 py-3.5 pr-12 focus:outline-none focus:border-purple-500 transition-colors"
+              className="w-full bg-gray-900 border border-white/20 text-white placeholder-gray-600 rounded-2xl px-4 py-3.5 pr-12 focus:outline-none focus:border-[var(--accent)] transition-colors"
             />
             <button type="button" onClick={() => setShowPw((p) => !p)}
               className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white">
@@ -397,7 +397,7 @@ function AuthForm({ mode, onModeChange }: { mode: 'signin' | 'signup'; onModeCha
           </div>
 
           <button type="submit" disabled={loading}
-            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-3.5 rounded-2xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50">
+            className="w-full bg-[var(--accent)] text-[#050c1a] font-bold py-3.5 rounded-2xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50">
             {loading
               ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               : <>{mode === 'signup' ? 'Create Account' : 'Sign In'} <ArrowRight className="w-4 h-4" /></>}
@@ -453,8 +453,8 @@ export function LandingPage() {
 
         {/* Background glow */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-purple-900/20 rounded-full blur-[120px]" />
-          <div className="absolute top-1/3 left-1/4 w-[300px] h-[300px] bg-pink-900/15 rounded-full blur-[100px]" />
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full blur-[120px]" style={{ background: 'rgba(212,168,67,0.10)' }} />
+          <div className="absolute top-1/3 left-1/4 w-[300px] h-[300px] rounded-full blur-[100px]" style={{ background: 'rgba(212,168,67,0.06)' }} />
         </div>
 
         {/* Grid bg */}
@@ -466,7 +466,7 @@ export function LandingPage() {
         >
           {/* Logo */}
           <div className="flex items-center justify-center gap-2 mb-6">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
+            <div className="w-12 h-12 rounded-2xl bg-brand-gradient flex items-center justify-center shadow-lg">
               <Zap className="w-7 h-7 text-white" />
             </div>
             <span className="text-white font-black text-4xl tracking-tight">SURGE</span>
@@ -478,7 +478,8 @@ export function LandingPage() {
               <motion.p key={tagIdx}
                 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -20, opacity: 0 }}
                 transition={{ duration: 0.4 }}
-                className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent"
+                className="text-2xl font-bold"
+                style={{ background: 'linear-gradient(90deg, var(--accent-bright), var(--accent))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
               >
                 {TAGLINES[tagIdx]}
               </motion.p>
@@ -508,12 +509,12 @@ export function LandingPage() {
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={() => setMode('signup')}
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-4 rounded-2xl text-base hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-lg shadow-purple-900/40"
+              className="w-full bg-[var(--accent)] text-[#050c1a] font-bold py-4 rounded-2xl text-base hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-lg"
             >
               <Zap className="w-5 h-5" /> Get Started Free
             </motion.button>
             <button onClick={() => setMode('signin')}
-              className="w-full bg-gray-900/80 border border-white/10 text-white font-semibold py-3.5 rounded-2xl hover:border-purple-500/60 transition-colors">
+              className="w-full bg-gray-900/80 border border-white/10 text-white font-semibold py-3.5 rounded-2xl hover:border-[var(--border-strong)] transition-colors">
               Sign In
             </button>
           </div>
@@ -639,9 +640,9 @@ export function LandingPage() {
       {/* ── BOTTOM CTA ─────────────────────────────────────── */}
       <section className="px-4 py-16 max-w-lg mx-auto">
         <FadeIn>
-          <div className="relative bg-gradient-to-br from-purple-950/80 to-pink-950/60 border border-purple-500/20 rounded-3xl p-8 text-center overflow-hidden">
+          <div className="relative bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-3xl p-8 text-center overflow-hidden">
             {/* Glow */}
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-600/10 to-pink-600/10 pointer-events-none" />
+            <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(135deg, rgba(212,168,67,0.12), rgba(5,12,26,0.4))' }} />
 
             <div className="relative z-10">
               <div className="text-4xl mb-4">⚡</div>
@@ -651,7 +652,7 @@ export function LandingPage() {
               <motion.button
                 whileTap={{ scale: 0.97 }}
                 onClick={() => setMode('signup')}
-                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-4 rounded-2xl text-base hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-lg shadow-purple-900/50 mb-3"
+                className="w-full bg-[var(--accent)] text-[#050c1a] font-bold py-4 rounded-2xl text-base hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-lg mb-3"
               >
                 Get Started Free <ArrowRight className="w-5 h-5" />
               </motion.button>

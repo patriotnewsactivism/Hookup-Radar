@@ -4,7 +4,7 @@ import { users } from '../lib/surgeApi';
 import { SurgeUser } from '../types';
 
 interface AuthContextType {
-  authUser: { id: string; email: string } | null;
+  authUser: { id: string; email: string; emailConfirmed?: boolean } | null;
   profile: SurgeUser | null;
   loading: boolean;
   signUp: (email: string, password: string) => Promise<void>;
@@ -45,12 +45,15 @@ function mapProfile(viewer: any): SurgeUser | null {
     is_anonymous: viewer.is_anonymous ?? false,
     is_premium: viewer.is_premium ?? false,
     is_verified: viewer.is_verified ?? false,
+    is_demo: viewer.is_demo ?? false,
     show_on_map: viewer.show_on_map ?? true,
     show_distance: viewer.show_distance ?? true,
     profile_views: viewer.profile_views ?? 0,
     blocked_users: viewer.blocked_users || [],
     favorite_users: viewer.favorite_users || [],
+    premium_until: viewer.premium_until || '',
     free_trial_until: viewer.free_trial_until || '',
+    right_now_until: viewer.right_now_until || '',
     last_seen: viewer.last_seen || new Date().toISOString(),
     lat: viewer.lat ?? 0,
     lng: viewer.lng ?? 0,
@@ -58,7 +61,7 @@ function mapProfile(viewer: any): SurgeUser | null {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [authUser, setAuthUser] = useState<{ id: string; email: string } | null>(null);
+  const [authUser, setAuthUser] = useState<{ id: string; email: string; emailConfirmed?: boolean } | null>(null);
   const [profile, setProfile] = useState<SurgeUser | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -78,7 +81,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!active) return;
       const session = data.session;
       if (session?.user) {
-        setAuthUser({ id: session.user.id, email: session.user.email || '' });
+        setAuthUser({
+          id: session.user.id,
+          email: session.user.email || '',
+          emailConfirmed: session.user.email_confirmed_at != null,
+        });
         await loadProfile();
       } else {
         setAuthUser(null);
@@ -90,7 +97,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (!active) return;
       if (session?.user) {
-        setAuthUser({ id: session.user.id, email: session.user.email || '' });
+        setAuthUser({
+          id: session.user.id,
+          email: session.user.email || '',
+          emailConfirmed: session.user.email_confirmed_at != null,
+        });
         await loadProfile();
       } else {
         setAuthUser(null);

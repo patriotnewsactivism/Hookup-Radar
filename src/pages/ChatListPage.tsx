@@ -8,7 +8,6 @@ import { Avatar } from '../components/ui/SurgeAvatar';
 import { formatDistanceToNow } from 'date-fns';
 import { ChatPage } from './ChatPage';
 import { MessageCircle } from 'lucide-react';
-import { getBotProfileById, BOT_IDS_PREFIX } from '../lib/bots';
 
 interface ConvoSummary {
   other_user: SurgeUser;
@@ -48,24 +47,15 @@ export function ChatListPage() {
   // Build conversation summaries
   const convos: ConvoSummary[] = (conversations ?? [])
     .map((c: any) => {
-      // Try to get bot profile if it's a bot
-      let otherUser: SurgeUser | null = null;
-      if (c.other_user_id.startsWith(BOT_IDS_PREFIX)) {
-        const bot = getBotProfileById(c.other_user_id);
-        if (bot) otherUser = bot as SurgeUser;
-      }
-
-      // If not a bot, create a minimal user object
-      if (!otherUser) {
-        otherUser = {
-          id: c.other_user_id,
-          display_name: c.other_user_id.slice(0, 8),
-          username: c.other_user_id.slice(0, 8),
-          is_online: false,
-          is_anonymous: false,
-          photo_url: '',
-        } as SurgeUser;
-      }
+      // Create a minimal user object (full profiles load in ChatPage)
+      const otherUser = {
+        id: c.other_user_id,
+        display_name: c.other_user_id.slice(0, 8),
+        username: c.other_user_id.slice(0, 8),
+        is_online: false,
+        is_anonymous: false,
+        photo_url: '',
+      } as SurgeUser;
 
       // Skip blocked users
       if (profile?.blocked_users?.includes(c.other_user_id)) return null;

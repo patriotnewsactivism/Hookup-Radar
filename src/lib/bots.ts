@@ -1,9 +1,11 @@
 // ============================================================
-// Surge Bot System
-// - 25+ diverse bots across all orientations
-// - AI-powered contextual replies via /api/bot-reply
-// - Realistic response delays with typing indicators
-// - Never reveal bot status
+// Surge Demo Profile Pool
+// - 21 sample profiles across all orientations
+// - Used ONLY for the opt-in "Demo area" shown when zero real
+//   users are nearby (toggle in the grid, default OFF)
+// - Demo profiles are NEVER verified, NEVER interleaved into the
+//   live grid, and never have chat replies — they are clearly
+//   labeled as demo everywhere they appear
 // ============================================================
 
 import { SurgeUser, Orientation } from '../types';
@@ -34,11 +36,11 @@ export const ALL_BOT_PROFILES: Omit<SurgeUser, 'id' | 'distance'>[] = [
     photo_urls: ['https://i.pravatar.cc/400?img=12', 'https://i.pravatar.cc/400?img=13'],
     lat: 0, lng: 0,
     last_seen: new Date().toISOString(),
-    is_online: true, is_anonymous: false, is_verified: true, is_premium: true,
+    is_online: true, is_anonymous: false, is_verified: false, is_demo: true, is_premium: true,
     blocked_users: [], favorite_users: [],
     profile_views: 847,
     show_distance: true, show_on_map: true,
-    tags: ['verified', 'popular'],
+    tags: ['popular'],
     auth_email: undefined,
   },
   {
@@ -62,7 +64,7 @@ export const ALL_BOT_PROFILES: Omit<SurgeUser, 'id' | 'distance'>[] = [
     photo_urls: ['https://i.pravatar.cc/400?img=22'],
     lat: 0, lng: 0,
     last_seen: new Date().toISOString(),
-    is_online: true, is_anonymous: false, is_verified: false, is_premium: false,
+    is_online: true, is_anonymous: false, is_verified: false, is_demo: true, is_premium: false,
     blocked_users: [], favorite_users: [],
     profile_views: 275,
     show_distance: true, show_on_map: true,
@@ -90,7 +92,7 @@ export const ALL_BOT_PROFILES: Omit<SurgeUser, 'id' | 'distance'>[] = [
     photo_urls: ['https://i.pravatar.cc/400?img=52'],
     lat: 0, lng: 0,
     last_seen: new Date(Date.now() - 1800000).toISOString(),
-    is_online: false, is_anonymous: false, is_verified: false, is_premium: false,
+    is_online: false, is_anonymous: false, is_verified: false, is_demo: true, is_premium: false,
     blocked_users: [], favorite_users: [],
     profile_views: 688,
     show_distance: true, show_on_map: true,
@@ -118,11 +120,11 @@ export const ALL_BOT_PROFILES: Omit<SurgeUser, 'id' | 'distance'>[] = [
     photo_urls: ['https://i.pravatar.cc/400?img=61'],
     lat: 0, lng: 0,
     last_seen: new Date().toISOString(),
-    is_online: true, is_anonymous: false, is_verified: true, is_premium: true,
+    is_online: true, is_anonymous: false, is_verified: false, is_demo: true, is_premium: true,
     blocked_users: [], favorite_users: [],
     profile_views: 1203,
     show_distance: true, show_on_map: true,
-    tags: ['verified'],
+    tags: [],
     auth_email: undefined,
   },
   {
@@ -146,7 +148,7 @@ export const ALL_BOT_PROFILES: Omit<SurgeUser, 'id' | 'distance'>[] = [
     photo_urls: ['https://i.pravatar.cc/400?img=67'],
     lat: 0, lng: 0,
     last_seen: new Date().toISOString(),
-    is_online: true, is_anonymous: false, is_verified: false, is_premium: false,
+    is_online: true, is_anonymous: false, is_verified: false, is_demo: true, is_premium: false,
     blocked_users: [], favorite_users: [],
     profile_views: 432,
     show_distance: true, show_on_map: true,
@@ -176,11 +178,11 @@ export const ALL_BOT_PROFILES: Omit<SurgeUser, 'id' | 'distance'>[] = [
     photo_urls: ['https://i.pravatar.cc/400?img=44'],
     lat: 0, lng: 0,
     last_seen: new Date().toISOString(),
-    is_online: true, is_anonymous: false, is_verified: true, is_premium: true,
+    is_online: true, is_anonymous: false, is_verified: false, is_demo: true, is_premium: true,
     blocked_users: [], favorite_users: [],
     profile_views: 612,
     show_distance: true, show_on_map: true,
-    tags: ['verified'],
+    tags: [],
     auth_email: undefined,
   },
   {
@@ -204,7 +206,7 @@ export const ALL_BOT_PROFILES: Omit<SurgeUser, 'id' | 'distance'>[] = [
     photo_urls: ['https://i.pravatar.cc/400?img=49'],
     lat: 0, lng: 0,
     last_seen: new Date().toISOString(),
-    is_online: true, is_anonymous: false, is_verified: false, is_premium: false,
+    is_online: true, is_anonymous: false, is_verified: false, is_demo: true, is_premium: false,
     blocked_users: [], favorite_users: [],
     profile_views: 389,
     show_distance: true, show_on_map: true,
@@ -232,7 +234,7 @@ export const ALL_BOT_PROFILES: Omit<SurgeUser, 'id' | 'distance'>[] = [
     photo_urls: ['https://i.pravatar.cc/400?img=56'],
     lat: 0, lng: 0,
     last_seen: new Date().toISOString(),
-    is_online: true, is_anonymous: false, is_verified: false, is_premium: false,
+    is_online: true, is_anonymous: false, is_verified: false, is_demo: true, is_premium: false,
     blocked_users: [], favorite_users: [],
     profile_views: 541,
     show_distance: true, show_on_map: true,
@@ -262,11 +264,11 @@ export const ALL_BOT_PROFILES: Omit<SurgeUser, 'id' | 'distance'>[] = [
     photo_urls: ['https://i.pravatar.cc/400?img=47'],
     lat: 0, lng: 0,
     last_seen: new Date().toISOString(),
-    is_online: true, is_anonymous: false, is_verified: true, is_premium: false,
+    is_online: true, is_anonymous: false, is_verified: false, is_demo: true, is_premium: false,
     blocked_users: [], favorite_users: [],
     profile_views: 1102,
     show_distance: true, show_on_map: true,
-    tags: ['verified'],
+    tags: [],
     auth_email: undefined,
   },
   {
@@ -290,7 +292,7 @@ export const ALL_BOT_PROFILES: Omit<SurgeUser, 'id' | 'distance'>[] = [
     photo_urls: ['https://i.pravatar.cc/400?img=39'],
     lat: 0, lng: 0,
     last_seen: new Date().toISOString(),
-    is_online: true, is_anonymous: false, is_verified: false, is_premium: false,
+    is_online: true, is_anonymous: false, is_verified: false, is_demo: true, is_premium: false,
     blocked_users: [], favorite_users: [],
     profile_views: 734,
     show_distance: true, show_on_map: true,
@@ -318,7 +320,7 @@ export const ALL_BOT_PROFILES: Omit<SurgeUser, 'id' | 'distance'>[] = [
     photo_urls: ['https://i.pravatar.cc/400?img=35'],
     lat: 0, lng: 0,
     last_seen: new Date().toISOString(),
-    is_online: false, is_anonymous: false, is_verified: false, is_premium: false,
+    is_online: false, is_anonymous: false, is_verified: false, is_demo: true, is_premium: false,
     blocked_users: [], favorite_users: [],
     profile_views: 318,
     show_distance: true, show_on_map: true,
@@ -348,11 +350,11 @@ export const ALL_BOT_PROFILES: Omit<SurgeUser, 'id' | 'distance'>[] = [
     photo_urls: ['https://i.pravatar.cc/400?img=57'],
     lat: 0, lng: 0,
     last_seen: new Date().toISOString(),
-    is_online: true, is_anonymous: false, is_verified: true, is_premium: true,
+    is_online: true, is_anonymous: false, is_verified: false, is_demo: true, is_premium: true,
     blocked_users: [], favorite_users: [],
     profile_views: 541,
     show_distance: true, show_on_map: true,
-    tags: ['verified'],
+    tags: [],
     auth_email: undefined,
   },
   {
@@ -376,7 +378,7 @@ export const ALL_BOT_PROFILES: Omit<SurgeUser, 'id' | 'distance'>[] = [
     photo_urls: ['https://i.pravatar.cc/400?img=15'],
     lat: 0, lng: 0,
     last_seen: new Date(Date.now() - 900000).toISOString(),
-    is_online: false, is_anonymous: false, is_verified: false, is_premium: false,
+    is_online: false, is_anonymous: false, is_verified: false, is_demo: true, is_premium: false,
     blocked_users: [], favorite_users: [],
     profile_views: 312,
     show_distance: true, show_on_map: true,
@@ -404,11 +406,11 @@ export const ALL_BOT_PROFILES: Omit<SurgeUser, 'id' | 'distance'>[] = [
     photo_urls: ['https://i.pravatar.cc/400?img=63'],
     lat: 0, lng: 0,
     last_seen: new Date().toISOString(),
-    is_online: true, is_anonymous: false, is_verified: true, is_premium: false,
+    is_online: true, is_anonymous: false, is_verified: false, is_demo: true, is_premium: false,
     blocked_users: [], favorite_users: [],
     profile_views: 876,
     show_distance: true, show_on_map: true,
-    tags: ['verified'],
+    tags: [],
     auth_email: undefined,
   },
 
@@ -434,7 +436,7 @@ export const ALL_BOT_PROFILES: Omit<SurgeUser, 'id' | 'distance'>[] = [
     photo_urls: ['https://i.pravatar.cc/400?img=21'],
     lat: 0, lng: 0,
     last_seen: new Date().toISOString(),
-    is_online: true, is_anonymous: false, is_verified: false, is_premium: false,
+    is_online: true, is_anonymous: false, is_verified: false, is_demo: true, is_premium: false,
     blocked_users: [], favorite_users: [],
     profile_views: 312,
     show_distance: true, show_on_map: true,
@@ -462,7 +464,7 @@ export const ALL_BOT_PROFILES: Omit<SurgeUser, 'id' | 'distance'>[] = [
     photo_urls: ['https://i.pravatar.cc/400?img=30'],
     lat: 0, lng: 0,
     last_seen: new Date().toISOString(),
-    is_online: true, is_anonymous: false, is_verified: false, is_premium: false,
+    is_online: true, is_anonymous: false, is_verified: false, is_demo: true, is_premium: false,
     blocked_users: [], favorite_users: [],
     profile_views: 902,
     show_distance: true, show_on_map: true,
@@ -490,11 +492,11 @@ export const ALL_BOT_PROFILES: Omit<SurgeUser, 'id' | 'distance'>[] = [
     photo_urls: ['https://i.pravatar.cc/400?img=38'],
     lat: 0, lng: 0,
     last_seen: new Date().toISOString(),
-    is_online: true, is_anonymous: false, is_verified: true, is_premium: true,
+    is_online: true, is_anonymous: false, is_verified: false, is_demo: true, is_premium: true,
     blocked_users: [], favorite_users: [],
     profile_views: 1456,
     show_distance: true, show_on_map: true,
-    tags: ['verified'],
+    tags: [],
     auth_email: undefined,
   },
   {
@@ -518,7 +520,7 @@ export const ALL_BOT_PROFILES: Omit<SurgeUser, 'id' | 'distance'>[] = [
     photo_urls: ['https://i.pravatar.cc/400?img=70'],
     lat: 0, lng: 0,
     last_seen: new Date().toISOString(),
-    is_online: true, is_anonymous: false, is_verified: false, is_premium: false,
+    is_online: true, is_anonymous: false, is_verified: false, is_demo: true, is_premium: false,
     blocked_users: [], favorite_users: [],
     profile_views: 198,
     show_distance: true, show_on_map: true,
@@ -548,7 +550,7 @@ export const ALL_BOT_PROFILES: Omit<SurgeUser, 'id' | 'distance'>[] = [
     photo_urls: ['https://i.pravatar.cc/400?img=59'],
     lat: 0, lng: 0,
     last_seen: new Date().toISOString(),
-    is_online: true, is_anonymous: false, is_verified: false, is_premium: false,
+    is_online: true, is_anonymous: false, is_verified: false, is_demo: true, is_premium: false,
     blocked_users: [], favorite_users: [],
     profile_views: 267,
     show_distance: true, show_on_map: true,
@@ -576,7 +578,7 @@ export const ALL_BOT_PROFILES: Omit<SurgeUser, 'id' | 'distance'>[] = [
     photo_urls: ['https://i.pravatar.cc/400?img=43'],
     lat: 0, lng: 0,
     last_seen: new Date().toISOString(),
-    is_online: false, is_anonymous: false, is_verified: false, is_premium: false,
+    is_online: false, is_anonymous: false, is_verified: false, is_demo: true, is_premium: false,
     blocked_users: [], favorite_users: [],
     profile_views: 441,
     show_distance: true, show_on_map: true,
@@ -606,11 +608,11 @@ export const ALL_BOT_PROFILES: Omit<SurgeUser, 'id' | 'distance'>[] = [
     photo_urls: ['https://i.pravatar.cc/400?img=33'],
     lat: 0, lng: 0,
     last_seen: new Date().toISOString(),
-    is_online: true, is_anonymous: false, is_verified: true, is_premium: true,
+    is_online: true, is_anonymous: false, is_verified: false, is_demo: true, is_premium: true,
     blocked_users: [], favorite_users: [],
     profile_views: 1203,
     show_distance: true, show_on_map: true,
-    tags: ['verified', 'couple'],
+    tags: ['couple'],
     auth_email: undefined,
   },
 ];
@@ -674,164 +676,13 @@ export function getBotsForArea(
   }));
 }
 
-/** Look up bot profile from a bot ID (format: bot_{username}_{tileKey}) */
-export function getBotProfileById(botId: string) {
-  const withoutPrefix = botId.replace(/^bot_/, '');
+/** Look up a demo profile from a demo ID (format: bot_{username}_{tileKey}) */
+export function getDemoProfileById(demoId: string) {
+  const withoutPrefix = demoId.replace(/^bot_/, '');
   return ALL_BOT_PROFILES.find(b =>
     withoutPrefix === b.username ||
     withoutPrefix.startsWith(b.username + '_')
   ) ?? null;
-}
-
-// ── AI-powered bot reply ──────────────────────────────────────
-
-export async function getAIBotReply(
-  botId: string,
-  conversationHistory: { role: 'user' | 'assistant'; content: string }[],
-  userMessage: string
-): Promise<string> {
-  const botProfile = getBotProfileById(botId);
-  if (!botProfile) return pick(BOT_REPLIES.default);
-
-  const response = await fetch('/api/bot-reply', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      botProfile: {
-        display_name: botProfile.display_name,
-        bio: botProfile.bio,
-        age: botProfile.age,
-        gender: botProfile.gender,
-        orientation: botProfile.orientation,
-        position: botProfile.position,
-        body_type: botProfile.body_type,
-        looking_for: botProfile.looking_for,
-        kinks: botProfile.kinks,
-      },
-      conversationHistory,
-      userMessage,
-    }),
-  });
-
-  if (!response.ok) throw new Error('API unavailable');
-  const data = await response.json() as { reply?: string };
-  if (!data.reply) throw new Error('Empty reply');
-  return data.reply;
-}
-
-// ── Bot reply system ──────────────────────────────────────────
-
-export function botReplyDelay(): number {
-  const min = 4000;
-  const max = 18000;
-  return min + Math.floor(Math.random() * (max - min));
-}
-
-export const BOT_REPLIES: Record<string, string[]> = {
-  greeting: [
-    "hey! what's good?",
-    "oh hey! wasn't expecting a message. what's up?",
-    "heyyy 👀 how are you?",
-    "well look who it is lol. what's good",
-    "hey you! was literally just about to get off this app. good timing.",
-    "omg hi! been a second, what's up",
-  ],
-  interest: [
-    "okay ngl you caught my eye",
-    "I'm lowkey into this conversation already",
-    "you seem interesting tbh",
-    "not gonna lie, glad you messaged",
-    "honestly didn't expect to find someone worth talking to tonight lol",
-  ],
-  busy: [
-    "ugh I'm at work rn but text me later tonight?",
-    "sorry just saw this! been slammed all day",
-    "hey! can we chat in like an hour? in the middle of something",
-    "omg sorry just got this notif 😭",
-    "just got out of a meeting omg hi, what'd I miss",
-  ],
-  maybe: [
-    "maybe… what did you have in mind? 😏",
-    "depends on what you're offering lol",
-    "tell me more first 👀",
-    "hmm. convince me",
-    "that depends… are you close?",
-    "idk, you'd have to sell me on it a bit more",
-  ],
-  flirt: [
-    "okay okay I see you 😏",
-    "that's bold lol. I respect it",
-    "you're funny. I like that",
-    "okay you definitely got my attention 🔥",
-    "smooth lol. points for that",
-  ],
-  location: [
-    "yeah I'm close actually, like 10 min away",
-    "not far at all tbh",
-    "close enough 😏 why?",
-    "closer than you think lol",
-    "pretty close actually — same neighborhood basically",
-  ],
-  nsfw: [
-    "lol okay getting right to it huh 😂",
-    "bold. I like bold.",
-    "ha okay slow down just a little bit first 😂",
-    "that's… a choice to open with 😂 but I'm not mad at it",
-    "okay slow your roll 😏 tell me a little about yourself first",
-  ],
-  meetup: [
-    "yeah let's figure something out, what's your schedule like?",
-    "I'm down, what did you have in mind?",
-    "yes but tonight might be tight — can you do tomorrow?",
-    "okay I'm intrigued. where/when?",
-    "let's make a plan then 🔥 I hate vague \"let's hang\" stuff",
-  ],
-  default: [
-    "lol facts",
-    "ha okay I feel that",
-    "that's actually kinda fair tbh",
-    "I mean… yeah, same",
-    "right?? honestly",
-    "haha okay okay",
-    "I actually love that",
-    "ngl that's a good point",
-    "fr though",
-  ],
-};
-
-export function getBotReply(messageText: string): string {
-  const lower = messageText.toLowerCase();
-
-  if (/^(hey|hi|hello|sup|yo|heyy|heyyy|what'?s up|wassup|morning|good morning|evening)/.test(lower)) {
-    return pick(BOT_REPLIES.greeting);
-  }
-  if (/\b(busy|work|later|tonight|free|available)\b/.test(lower)) {
-    return pick(BOT_REPLIES.busy);
-  }
-  if (/\b(where|close|nearby|location|far|area|distance|how far|miles?)\b/.test(lower)) {
-    return pick(BOT_REPLIES.location);
-  }
-  if (/\b(sex|fuck|suck|dick|cock|ass|naked|nude|pic|send pic|nudes|horny)\b/.test(lower)) {
-    return pick(BOT_REPLIES.nsfw);
-  }
-  if (/\b(cute|hot|sexy|attractive|handsome|beautiful|gorgeous|pretty)\b/.test(lower)) {
-    return pick(BOT_REPLIES.flirt);
-  }
-  if (/\b(meet|hookup|hook up|come over|your place|my place|hang out|come through)\b/.test(lower)) {
-    return pick(BOT_REPLIES.meetup);
-  }
-  if (/\b(maybe|not sure|idk|depends|possibly|kinda|hmm)\b/.test(lower)) {
-    return pick(BOT_REPLIES.maybe);
-  }
-  if (/\b(interesting|cool|nice|wow|really|seriously|no way|facts)\b/.test(lower)) {
-    return pick(BOT_REPLIES.interest);
-  }
-
-  return pick(BOT_REPLIES.default);
-}
-
-function pick<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
 }
 
 export const BOT_IDS_PREFIX = 'bot_';

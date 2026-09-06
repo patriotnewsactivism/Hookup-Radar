@@ -3,6 +3,7 @@ import { useNearbyUsers } from '../hooks/useNearbyUsers';
 import { useAuth } from '../contexts/AuthContext';
 import { Avatar } from './ui/SurgeAvatar';
 import { SurgeUser } from '../types';
+import { isRightNowActive } from '../lib/rightNow';
 import { MapPin, Zap } from 'lucide-react';
 
 interface Props {
@@ -13,7 +14,7 @@ export function RightNowFeed({ onSelectUser }: Props) {
   const { profile } = useAuth();
   const { users } = useNearbyUsers(profile?.lat ?? 0, profile?.lng ?? 0);
 
-  const rightNowUsers = users.filter(u => u.looking_for?.includes('Right Now') && u.is_online);
+  const rightNowUsers = users.filter(u => isRightNowActive(u) && u.is_online);
 
   if (rightNowUsers.length === 0) return null;
 

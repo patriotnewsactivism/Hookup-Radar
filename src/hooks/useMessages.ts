@@ -1,15 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { messages as messagesApi } from '../lib/surgeApi';
 import { useAsyncQueryWithRefresh } from '../lib/useSupabaseQuery';
 import { supabase } from '../lib/supabaseClient';
 import { Message } from '../types';
-import { isBot, getBotReply, botReplyDelay } from '../lib/bots';
 
 export function useMessages(conversationId: string | null, myId: string | null) {
-  const [botTyping, setBotTyping] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
-  const botTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const rawMessages = useAsyncQueryWithRefresh(
     messagesApi.getByConversation,
@@ -18,7 +14,6 @@ export function useMessages(conversationId: string | null, myId: string | null) 
   );
 
   const sendMutation = messagesApi.send;
-  const sendBotReplyMutation = messagesApi.sendBotReply;
   const markReadMutation = messagesApi.markRead;
 
   const loading = rawMessages === undefined;
@@ -60,32 +55,6 @@ export function useMessages(conversationId: string | null, myId: string | null) 
     });
   }, [messages, myId, markReadMutation]);
 
-  const scheduleBotReply = useCallback((botId: string, userMessage: string) => {
-    if (!conversationId || !myId) return;
-    const delay = botReplyDelay();
-    const typingStart = Math.max(0, delay - 3000);
-
-    if (botTimerRef.current) clearTimeout(botTimerRef.current);
-    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
-    typingTimerRef.current = setTimeout(() => setBotTyping(true), typingStart);
-
-    botTimerRef.current = setTimeout(async () => {
-      setBotTyping(false);
-      await sendBotReplyMutation({
-        conversation_id: conversationId,
-        bot_id: botId,
-        receiver_id: myId,
-        text: getBotReply(userMessage),
-      });
-      setRefreshToken((t) => t + 1);
-    }, delay);
-  }, [conversationId, myId, sendBotReplyMutation]);
-
-  useEffect(() => () => {
-    if (botTimerRef.current) clearTimeout(botTimerRef.current);
-    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
-  }, []);
-
   const sendMessage = async (
     receiverId: string,
     text: string,
@@ -101,10 +70,9 @@ export function useMessages(conversationId: string | null, myId: string | null) 
       media_type: mediaType,
     });
     setRefreshToken((t) => t + 1);
-    if (isBot(receiverId)) scheduleBotReply(receiverId, text);
   };
 
-  return { messages, loading, sendMessage, botTyping };
+  return { messages, loading, sendMessage };
 }
 
 export function makeConversationId(id1: string, id2: string): string {

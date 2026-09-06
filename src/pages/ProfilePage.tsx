@@ -3,7 +3,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { Avatar } from '../components/ui/SurgeAvatar';
 import { Badge } from '../components/ui/SurgeBadge';
 import { GENDERS, ORIENTATIONS, POSITIONS, LOOKING_FOR, KINKS } from '../types';
-import { Eye, Crown, LogOut, Shield, Zap, EyeOff, Camera } from 'lucide-react';
+import { users } from '../lib/surgeApi';
+import { isRightNowActive } from '../lib/rightNow';
+import { Eye, Crown, LogOut, Shield, Zap, EyeOff, Camera, Clock3 } from 'lucide-react';
 import { toast } from 'sonner';
 import clsx from 'clsx';
 import { PhotoUpload } from '../components/PhotoUpload';
@@ -12,7 +14,7 @@ import { AlbumManager } from '../components/AlbumManager';
 type Tab = 'profile' | 'photos' | 'settings' | 'premium';
 
 export function ProfilePage() {
-  const { profile, updateProfile, signOut } = useAuth();
+  const { profile, updateProfile, signOut, refreshProfile } = useAuth();
   const [tab, setTab] = useState<Tab>('profile');
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ ...profile });
@@ -39,6 +41,17 @@ export function ProfilePage() {
 
   const inFreeTrial = profile.free_trial_until && new Date(profile.free_trial_until) > new Date();
   const isPremiumActive = profile.is_premium || inFreeTrial;
+  const rightNowActive = isRightNowActive(profile);
+
+  const toggleRightNow = async () => {
+    try {
+      await users.setRightNow({ id: id, active: !rightNowActive });
+      await refreshProfile();
+      toast.success(rightNowActive ? 'Right Now turned off' : 'Live for 2 hours — enjoy ⚡');
+    } catch (e: any) {
+      toast.error(e.message || 'Could not update Right Now');
+    }
+  };
 
   return (
     <div className="h-full overflow-y-auto bg-black">
@@ -126,7 +139,7 @@ export function ProfilePage() {
                 <div>
                   <label className="text-gray-500 text-xs uppercase mb-2 block">Looking For</label>
                   <div className="flex flex-wrap gap-2">
-                    {LOOKING_FOR.map(lf => (
+                    {LOOKING_FOR.filter(v => v !== 'Right Now').map(lf => (
                       <button key={lf} onClick={() => toggleField('looking_for', lf)} className={`px-3 py-1.5 rounded-xl text-xs border transition-colors ${(form.looking_for as string[] || []).includes(lf) ? 'bg-orange-700 border-orange-500 text-white' : 'bg-gray-900 border-white/10 text-gray-400'}`}>{lf}</button>
                     ))}
                   </div>
@@ -214,6 +227,19 @@ export function ProfilePage() {
         {/* SETTINGS TAB */}
         {tab === 'settings' && (
           <div className="space-y-4">
+            {/* Right Now — one-tap signal */}
+            <div className="flex items-center justify-between bg-gray-900 rounded-2xl p-4 border border-white/5">
+              <div className="flex items-center gap-3">
+                <Clock3 size={18} className="text-red-400" />
+                <div>
+                  <p className="text-white text-sm font-semibold">Available Right Now</p>
+                  <p className="text-gray-500 text-xs">{rightNowActive ? "Live for the next 2 hours — you're pinned in the feed" : "Signal you're free — you'll be pinned in the feed for 2 hours"}</p>
+                </div>
+              </div>
+              <button onClick={toggleRightNow} className={clsx('w-12 h-6 rounded-full transition-colors flex-shrink-0', rightNowActive ? 'bg-red-500' : 'bg-gray-700')}>
+                <div className={clsx('w-5 h-5 bg-white rounded-full transition-transform mx-0.5', rightNowActive ? 'translate-x-6' : 'translate-x-0')} />
+              </button>
+            </div>
             {[
               { label: 'Show on Map', desc: 'Let others see your dot on the live map', key: 'show_on_map' as const, icon: <Eye size={18} className="text-purple-400" /> },
               { label: 'Show Distance', desc: 'Display your distance from others', key: 'show_distance' as const, icon: <Shield size={18} className="text-blue-400" /> },

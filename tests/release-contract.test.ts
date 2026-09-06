@@ -43,3 +43,24 @@ describe("release security contract", () => {
     expect(boundary).not.toContain("this.state.error?.stack");
   });
 });
+
+describe("demo profile policy", () => {
+  test("demo profiles are never interleaved into the live grid by default", () => {
+    const hook = read("src/hooks/useNearbyUsers.ts");
+    // The demo toggle is opt-in — default OFF.
+    expect(hook).toContain("includeDemo = false");
+    // The demo pool may only be requested behind the opt-in gate — the
+    // getBotsForArea call site must appear after the `includeDemo &&` condition
+    // (lastIndexOf skips the module import at the top of the file).
+    const gate = hook.indexOf("includeDemo &&");
+    const call = hook.lastIndexOf("getBotsForArea");
+    expect(gate).toBeGreaterThan(-1);
+    expect(call).toBeGreaterThan(gate);
+  });
+
+  test("demo profiles are never verified", () => {
+    const bots = read("src/lib/bots.ts");
+    expect(bots).not.toContain("is_verified: true");
+    expect(bots).toContain("is_demo: true");
+  });
+});
