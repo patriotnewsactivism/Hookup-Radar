@@ -1,5 +1,5 @@
 // v3.0 — migrated off Convex to Supabase
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Toaster } from 'sonner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LandingPage } from './pages/LandingPage';
@@ -11,12 +11,19 @@ import { ProfilePage } from './pages/ProfilePage';
 import { SpotsPage } from './pages/SpotsPage';
 import { BottomNav } from './components/BottomNav';
 import { VerifyEmailBanner } from './components/VerifyEmailBanner';
+import { premium } from './lib/surgeApi';
 import { AppView } from './types';
 
 function AppInner() {
   const { authUser, profile, loading } = useAuth();
   const [view, setView] = useState<AppView>('grid');
   const [unread, setUnread] = useState(0);
+
+  // Daily activity ping — server keeps the streak; safe to call repeatedly.
+  useEffect(() => {
+    if (!profile?.id) return;
+    premium.touchActivity().catch(() => {});
+  }, [profile?.id]);
 
   if (loading) {
     return (

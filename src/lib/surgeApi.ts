@@ -2,7 +2,6 @@
 // Function names/shapes deliberately mirror the old Convex functions so
 // consuming hooks/components need minimal changes beyond the import path.
 import { supabase } from './supabaseClient';
-import { rightNowExpiry } from './rightNow';
 
 // ── helpers ──────────────────────────────────────────────────────────
 function nowIso() {
@@ -246,16 +245,22 @@ export const users = {
   },
 
   async setRightNow(args: { id: string; active: boolean }) {
+    // Server-enforced: free = 1 activation/24h, premium = 5/24h. The client
+    // cannot bypass the limit because the RPC resolves the actor from the JWT.
     const me = await requireMyProfile();
     if (me.id !== args.id) throw new Error('Not authorized');
-    const patch = args.active
-      ? { right_now_until: rightNowExpiry() }
-      : { right_now_until: null };
-    const { error } = await supabase
-      .from('surge_users')
-      .update(patch)
-      .eq('id', args.id);
+    const { data, error } = await supabase.rpc('surge_set_right_now', {
+      p_active: args.active,
+    });
     if (error) throw error;
+    return data as {
+      ok: boolean;
+      active?: boolean;
+      reason?: string;
+      until?: string;
+      used?: number;
+      limit?: number;
+    };
   },
 
   async incrementViews(args: { id: string }) {
@@ -1001,28 +1006,43 @@ export const referrals = {
 
 // ── premium ─────────────────────────────────────────────────────────
 export const premium = {
-  /** Current premium state — self row only. */
-  async status(): Promise<{ active: boolean; until?: string }> {
-    const me = await requireMyProfile();
-    const until = me.premium_until as string | null;
-    return { active: !!me.is_premium, until: until || undefined };
+  /** Premium hub state — server-computed, incl. streak / boost / limits. */
+  async status(): Promise<{
+    is_premium: boolean;
+    premium_until?: string;
+    current_streak: number;
+    last_active_date?: string;
+    boost_expires_at?: string;
+    boost_available: boolean;
+    profile_complete: boolean;
+    right_now_used: number;
+    right_now_limit: number;
+  }> {
+    return rpcJson<any>('surge_premium_status');
   },
 
   /**
-   * Server-guarded grant for a reward type. The DB only honors types with
-   * one-shot semantics (verified_email, profile_complete, streak) and the
-   * ledger keeps grants idempotent — safe to call repeatedly.
+   * Server-guarded grant — amounts are FIXED server-side per type
+   * (verified_email = 1d, profile_complete = 3d); the client cannot inflate.
    */
-  async grant(args: { days: number; type: 'verified_email' | 'profile_complete' | 'streak'; reason?: string }): Promise<{ ok: boolean; days: number }> {
-    return rpcJson<{ ok: boolean; days: number }>('surge_grant_premium', {
+  async grant(args: { days: number; type: 'verified_email' | 'profile_complete' | 'streak'; reason?: string }): Promise<{ ok: boolean; days?: number; reason?: string }> {
+    return rpcJson<{ ok: boolean; days?: number; reason?: string }>('surge_grant_premium', {
       p_days: args.days,
       p_type: args.type,
       p_reason: args.reason ?? null,
     });
   },
 
-  /** Daily activity ping — powers streaks (extended in Phase 4). */
+  /** Daily activity ping — powers streak rewards. */
   async touchActivity(): Promise<{ ok: boolean; streak?: number }> {
     return rpcJson<{ ok: boolean; streak?: number }>('surge_record_streak');
+  },
+
+  /**
+   * Unlock a +12h visibility boost. Requires a solid reliability track
+   * record (avg >= 4 from meetups that happened) and no active boost.
+   */
+  async boost(): Promise<{ ok: boolean; boost_expires_at?: string; reason?: string }> {
+    return rpcJson<{ ok: boolean; boost_expires_at?: string; reason?: string }>('surge_record_boost');
   },
 };

@@ -14,7 +14,14 @@ export function RightNowFeed({ onSelectUser }: Props) {
   const { profile } = useAuth();
   const { users } = useNearbyUsers(profile?.lat ?? 0, profile?.lng ?? 0);
 
-  const rightNowUsers = users.filter(u => isRightNowActive(u) && u.is_online);
+  const rightNowUsers = users
+    .filter(u => isRightNowActive(u) && u.is_online)
+    .sort((a, b) => {
+      // Boosted profiles rise to the top of the feed.
+      const aBoost = a.boost_expires_at && new Date(a.boost_expires_at) > new Date() ? 1 : 0;
+      const bBoost = b.boost_expires_at && new Date(b.boost_expires_at) > new Date() ? 1 : 0;
+      return bBoost - aBoost;
+    });
 
   if (rightNowUsers.length === 0) return null;
 

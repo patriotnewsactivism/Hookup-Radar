@@ -3,9 +3,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { Avatar } from '../components/ui/SurgeAvatar';
 import { Badge } from '../components/ui/SurgeBadge';
 import { GENDERS, ORIENTATIONS, POSITIONS, LOOKING_FOR, KINKS } from '../types';
-import { users } from '../lib/surgeApi';
+import { users, premium as premiumApi } from '../lib/surgeApi';
 import { isRightNowActive } from '../lib/rightNow';
-import { Eye, Crown, LogOut, Shield, Zap, EyeOff, Camera, Clock3 } from 'lucide-react';
+import { usePremium } from '../hooks/usePremium';
+import { ProfileViewsList } from '../components/ProfileViewsList';
+import { Eye, Crown, LogOut, Shield, Zap, EyeOff, Camera, Clock3, ChevronDown, Flame, Rocket } from 'lucide-react';
 import { toast } from 'sonner';
 import clsx from 'clsx';
 import { PhotoUpload } from '../components/PhotoUpload';
@@ -13,6 +15,14 @@ import { AlbumManager } from '../components/AlbumManager';
 import { InviteFriends } from '../components/InviteFriends';
 
 type Tab = 'profile' | 'photos' | 'settings' | 'premium';
+
+function streakHint(streak: number): string {
+  if (streak >= 30) return 'Max streak — 7 free days earned 🏆';
+  if (streak >= 14) return '14-day streak: +3 days at 30 days';
+  if (streak >= 7) return '7-day streak: +1 day; +3 at 14';
+  if (streak >= 3) return '3-day streak: 6h Premium; +1 day at 7';
+  return 'Open Surge daily — rewards at 3, 7, 14 & 30 days';
+}
 
 export function ProfilePage() {
   const { profile, updateProfile, signOut, refreshProfile } = useAuth();
@@ -42,13 +52,48 @@ export function ProfilePage() {
 
   const inFreeTrial = profile.free_trial_until && new Date(profile.free_trial_until) > new Date();
   const isPremiumActive = profile.is_premium || inFreeTrial;
+  const premiumHub = usePremium();
   const rightNowActive = isRightNowActive(profile);
+  const boostActive = profile.boost_expires_at && new Date(profile.boost_expires_at) > new Date() ? profile.boost_expires_at : null;
+  const [viewsOpen, setViewsOpen] = useState(false);
+
+  const applyBoost = async () => {
+    try {
+      const result = await premiumApi.boost();
+      if (result?.ok && result.boost_expires_at) {
+        await refreshProfile();
+        await premiumHub.refresh();
+        toast.success("Boosted! You're pinned at the top for 12h 🚀");
+      } else if (result?.reason === 'already boosted') {
+        toast.error('A boost is already active');
+      } else if (result?.reason === 'rating below 4.0') {
+        toast.error('Boosts unlock after meetups rate you 4.0+ — be the reliable one');
+      } else {
+        toast.error('Boost unavailable right now');
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Could not boost');
+    }
+  };
 
   const toggleRightNow = async () => {
     try {
-      await users.setRightNow({ id: id, active: !rightNowActive });
-      await refreshProfile();
-      toast.success(rightNowActive ? 'Right Now turned off' : 'Live for 2 hours — enjoy ⚡');
+      const result = await users.setRightNow({ id: id, active: !rightNowActive });
+      if (result?.ok) {
+        await refreshProfile();
+        void premiumHub.refresh();
+        toast.success(
+          rightNowActive
+            ? 'Right Now turned off'
+            : result.until
+              ? 'Live for 2 hours — enjoy ⚡'
+              : 'Right Now is on ⚡'
+        );
+      } else if (result?.reason === 'daily limit') {
+        toast.error(`Daily limit reached — ${result.limit ?? 1} Right Now activation${(result.limit ?? 1) > 1 ? 's' : ''} per 24h`);
+      } else {
+        toast.error('Could not update Right Now');
+      }
     } catch (e: any) {
       toast.error(e.message || 'Could not update Right Now');
     }
@@ -90,9 +135,11 @@ export function ProfilePage() {
           </div>
           <h1 className="text-white font-black text-2xl">{profile.display_name || profile.username}</h1>
           <p className="text-gray-400 text-sm">{profile.age} · {profile.gender} · {profile.orientation}</p>
-          <div className="flex items-center gap-2 mt-1 text-gray-500 text-xs">
+          <button onClick={() => setViewsOpen(p => !p)} className="flex items-center gap-2 mt-1 text-gray-500 text-xs hover:text-[var(--accent)] transition-colors">
             <Eye size={12} /> <span>{profile.profile_views || 0} profile views</span>
-          </div>
+            <ChevronDown size={12} className={viewsOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />
+          </button>
+          {viewsOpen && <ProfileViewsList />}
         </div>
       </div>
 
@@ -228,13 +275,49 @@ export function ProfilePage() {
         {/* SETTINGS TAB */}
         {tab === 'settings' && (
           <div className="space-y-4">
+            {/* Streak — daily activity ping */}
+            <div className="flex items-center justify-between bg-gray-900 rounded-2xl p-4 border border-white/5">
+              <div className="flex items-center gap-3">
+                <Flame size={18} className="text-orange-400" />
+                <div>
+                  <p className="text-white text-sm font-semibold">{premiumHub.currentStreak > 0 ? `${premiumHub.currentStreak}-day streak 🔥` : 'Start your streak'}</p>
+                  <p className="text-gray-500 text-xs">{streakHint(premiumHub.currentStreak)}</p>
+                </div>
+              </div>
+              <span className="text-[var(--accent)] text-xs font-bold">{premiumHub.currentStreak}d</span>
+            </div>
+
+            {/* Boost — 12h top placement */}
+            <div className="flex items-center justify-between bg-gray-900 rounded-2xl p-4 border border-white/5">
+              <div className="flex items-center gap-3">
+                <Rocket size={18} className="text-[var(--accent)]" />
+                <div>
+                  <p className="text-white text-sm font-semibold">Profile Boost</p>
+                  <p className="text-gray-500 text-xs">
+                    {boostActive
+                      ? `Pinned to the top until ${new Date(boostActive).toLocaleTimeString()}`
+                      : premiumHub.boostAvailable
+                        ? 'Unlocked — pin your profile to the top for 12h'
+                        : 'Unlocks when meetups rate you 4.0+'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={applyBoost}
+                disabled={!!boostActive}
+                className={clsx('text-sm font-bold px-4 py-2 rounded-xl flex-shrink-0 disabled:opacity-40 transition-colors', boostActive ? 'bg-gray-800 text-[var(--accent)]' : 'bg-[var(--accent)] text-[#050c1a]')}
+              >
+                {boostActive ? 'Active' : 'Boost'}
+              </button>
+            </div>
+
             {/* Right Now — one-tap signal */}
             <div className="flex items-center justify-between bg-gray-900 rounded-2xl p-4 border border-white/5">
               <div className="flex items-center gap-3">
                 <Clock3 size={18} className="text-red-400" />
                 <div>
                   <p className="text-white text-sm font-semibold">Available Right Now</p>
-                  <p className="text-gray-500 text-xs">{rightNowActive ? "Live for the next 2 hours — you're pinned in the feed" : "Signal you're free — you'll be pinned in the feed for 2 hours"}</p>
+                  <p className="text-gray-500 text-xs">{rightNowActive ? "Live for the next 2 hours — you're pinned in the feed" : `${premiumHub.rightNowUsed}/${premiumHub.rightNowLimit} activations used today — free gets 1, Premium gets 5`}</p>
                 </div>
               </div>
               <button onClick={toggleRightNow} className={clsx('w-12 h-6 rounded-full transition-colors flex-shrink-0', rightNowActive ? 'bg-red-500' : 'bg-gray-700')}>
