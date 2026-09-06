@@ -11,8 +11,8 @@
 // ─────────────────────────────────────────────────────────────
 
 import React, { useState } from 'react';
-import { useQuery, useMutation } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import { moderation } from '../lib/surgeApi';
+import { useAsyncQuery, useAsyncQueryWithRefresh } from '../lib/useSupabaseQuery';
 import {
   BarChart2, Flag, MapPin, Users, CheckCircle,
   XCircle, AlertTriangle, ShieldOff, Shield, ChevronDown, ChevronUp
@@ -177,13 +177,14 @@ export function AdminPage() {
   const [tab, setTab] = useState<Tab>('overview');
   const [reportFilter, setReportFilter] = useState<string>('pending');
 
-  const stats        = useQuery(api.surgeModeration.getStats) as Stats | undefined;
-  const reports      = (useQuery(api.surgeModeration.listReports, { status: reportFilter }) ?? []) as Report[];
-  const pendingSpots = (useQuery(api.surgeModeration.listPendingSpots) ?? []) as Spot[];
+  const [refreshToken, setRefreshToken] = useState(0);
+  const stats        = useAsyncQueryWithRefresh(moderation.getStats, {}, refreshToken) as Stats | undefined;
+  const reports      = (useAsyncQueryWithRefresh(moderation.listReports, { status: reportFilter }, refreshToken) ?? []) as Report[];
+  const pendingSpots = (useAsyncQueryWithRefresh(moderation.listPendingSpots, {}, refreshToken) ?? []) as Spot[];
 
-  const resolveReport = useMutation(api.surgeModeration.resolveReport);
-  const issueStrike   = useMutation(api.surgeModeration.issueStrike);
-  const reviewSpot    = useMutation(api.surgeModeration.reviewSpot);
+  const resolveReport = moderation.resolveReport;
+  const issueStrike   = moderation.issueStrike;
+  const reviewSpot    = moderation.reviewSpot;
 
   const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
     { key: 'overview', label: 'Overview', icon: <BarChart2 className="w-4 h-4" /> },
@@ -259,8 +260,8 @@ export function AdminPage() {
                   <ReportRow
                     key={r.id}
                     report={r}
-                    onResolve={() => resolveReport({ report_id: r.id as any, status: 'resolved' })}
-                    onDismiss={() => resolveReport({ report_id: r.id as any, status: 'dismissed' })}
+                    onResolve={() => resolveReport({ report_id: r.id, status: 'resolved' }).then(() => setRefreshToken((t) => t + 1))}
+                    onDismiss={() => resolveReport({ report_id: r.id, status: 'dismissed' }).then(() => setRefreshToken((t) => t + 1))}
                     onStrike={() => {
                       const reason = prompt('Reason for strike:');
                       if (!reason) return;
@@ -270,7 +271,7 @@ export function AdminPage() {
                         report_id: r.id as any,
                         is_ban:    false,
                       });
-                      resolveReport({ report_id: r.id as any, status: 'resolved' });
+                      resolveReport({ report_id: r.id, status: 'resolved' }).then(() => setRefreshToken((t) => t + 1));
                     }}
                     onBan={() => {
                       const reason = prompt('Reason for ban:');
@@ -282,7 +283,7 @@ export function AdminPage() {
                         report_id: r.id as any,
                         is_ban:    true,
                       });
-                      resolveReport({ report_id: r.id as any, status: 'resolved' });
+                      resolveReport({ report_id: r.id, status: 'resolved' }).then(() => setRefreshToken((t) => t + 1));
                     }}
                   />
                 ))}
@@ -304,10 +305,10 @@ export function AdminPage() {
                   <SpotRow
                     key={s.id}
                     spot={s}
-                    onApprove={() => reviewSpot({ spot_id: s.id as any, approved: true })}
+                    onApprove={() => reviewSpot({ spot_id: s.id, approved: true }).then(() => setRefreshToken((t) => t + 1))}
                     onReject={() => {
                       if (confirm(`Reject "${s.name}"? This will delete it.`)) {
-                        reviewSpot({ spot_id: s.id as any, approved: false });
+                        reviewSpot({ spot_id: s.id, approved: false }).then(() => setRefreshToken((t) => t + 1));
                       }
                     }}
                   />

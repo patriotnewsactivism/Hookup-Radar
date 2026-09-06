@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { SurgeUser } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { useMutation } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import { reports, users } from '../lib/surgeApi';
 import { Avatar } from './ui/SurgeAvatar';
 import { Badge } from './ui/SurgeBadge';
 import { ReliabilityBadge } from './ReliabilityBadge';
@@ -24,8 +23,8 @@ export function UserProfileModal({ user, onClose, onChat }: Props) {
   const { profile, updateProfile } = useAuth();
   const [showRate, setShowRate] = useState(false);
   const [showReport, setShowReport] = useState(false);
-  const createReport = useMutation(api.surgeReports.create);
-  const incrementViews = useMutation(api.surgeUsers.incrementViews);
+  const createReport = reports.create;
+  const incrementViews = users.incrementViews;
 
   // Increment view count
   React.useEffect(() => {
@@ -52,7 +51,6 @@ export function UserProfileModal({ user, onClose, onChat }: Props) {
   const handleReport = async () => {
     if (!profile?.id) return;
     await createReport({
-      reporter_id: profile.id,
       reported_id: user.id,
       reason: 'Reported from profile modal',
     });

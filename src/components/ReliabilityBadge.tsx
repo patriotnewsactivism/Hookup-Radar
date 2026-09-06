@@ -1,6 +1,6 @@
 import React from 'react';
-import { useQuery } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import { ratings } from '../lib/surgeApi';
+import { useAsyncQuery } from '../lib/useSupabaseQuery';
 import { Shield } from 'lucide-react';
 
 interface Props {
@@ -9,7 +9,7 @@ interface Props {
 }
 
 export function ReliabilityBadge({ userId, compact = false }: Props) {
-  const stats = useQuery(api.surgeRatings.getStats, { user_id: userId });
+  const stats = useAsyncQuery(ratings.getStats, { user_id: userId });
 
   if (!stats || stats.total_ratings === 0) return null;
 

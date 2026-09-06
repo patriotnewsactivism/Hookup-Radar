@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { useMutation } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import { ratings } from '../lib/surgeApi';
 import { toast } from 'sonner';
 import { Star, X } from 'lucide-react';
 
@@ -19,7 +18,7 @@ export function RateHookup({ userId, raterId, onClose }: Props) {
   const [tags, setTags] = useState<string[]>([]);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const upsertRating = useMutation(api.surgeRatings.upsert);
+  const upsertRating = ratings.upsert;
 
   const toggleTag = (t: string) => setTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
 
@@ -27,7 +26,6 @@ export function RateHookup({ userId, raterId, onClose }: Props) {
     setSubmitting(true);
     try {
       await upsertRating({
-        rater_id: raterId,
         rated_user_id: userId,
         meetup_happened: meetup,
         reliability_score: reliability,

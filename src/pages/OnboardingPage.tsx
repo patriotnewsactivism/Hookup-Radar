@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useMutation } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import { users } from '../lib/surgeApi';
 import { GENDERS, ORIENTATIONS, POSITIONS, LOOKING_FOR, KINKS, BODY_TYPES, ETHNICITIES, HEALTH_STATUSES, LIFESTYLES } from '../types';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -48,7 +47,7 @@ function ChipSelect({ options, selected, onToggle, color = 'purple', single = fa
 
 export function OnboardingPage() {
   const { authUser, refreshProfile } = useAuth();
-  const createUser = useMutation(api.surgeUsers.create);
+  const createUser = users.create;
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);

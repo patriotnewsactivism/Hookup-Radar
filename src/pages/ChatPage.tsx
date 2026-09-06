@@ -6,8 +6,7 @@ import { Avatar } from '../components/ui/SurgeAvatar';
 import { ArrowLeft, Send, Smile, MoreVertical, Flag, Ban, Paperclip, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
-import { useMutation } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import { media as mediaApi, reports } from '../lib/surgeApi';
 import { IcebreakerPrompt } from '../components/IcebreakerPrompt';
 import { useMediaUpload } from '../hooks/useMediaUpload';
 import clsx from 'clsx';
@@ -45,8 +44,8 @@ export function ChatPage({ otherUser, conversationId, onBack }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
   const { upload: uploadMedia, uploading: mediaUploading, progress: mediaProgress } = useMediaUpload();
-  const sendMediaMessage = useMutation(api.surgeMedia.sendMediaMessage);
-  const createReport = useMutation(api.surgeReports.create);
+  const sendMediaMessage = mediaApi.sendMediaMessage;
+  const createReport = reports.create;
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -80,9 +79,8 @@ export function ChatPage({ otherUser, conversationId, onBack }: Props) {
       if (result) {
         await sendMediaMessage({
           conversation_id: conversationId,
-          sender_id: profile.id,
           receiver_id: otherUser.id,
-          storage_id: result.storageId as any,
+          url: result.url,
           media_type: isImage ? 'image' : 'video',
         });
         toast.success(`${isImage ? 'Photo' : 'Video'} sent!`);
@@ -104,7 +102,6 @@ export function ChatPage({ otherUser, conversationId, onBack }: Props) {
   const handleReport = async () => {
     if (!profile?.id) return;
     await createReport({
-      reporter_id: profile.id,
       reported_id: otherUser.id,
       reason: 'Reported from chat',
     });

@@ -4,8 +4,8 @@ import { MapPin, Users, MessageCircle, Plus, X, Send, Calendar,
   Flame, ChevronRight, Loader2,
   TreePine, Waves, Beer, Building2, BookOpen, DoorOpen, HelpCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { useQuery, useMutation } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import { spots as spotsApi } from '../lib/surgeApi';
+import { useAsyncQuery, useAsyncQueryWithRefresh } from '../lib/useSupabaseQuery';
 import { toast } from 'sonner';
 
 type SpotCategory = 'park' | 'beach' | 'bar' | 'sauna' | 'bookstore' | 'restroom' | 'other';
@@ -34,14 +34,14 @@ export function SpotsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [filter, setFilter] = useState<SpotCategory | 'all'>('all');
 
-  const spots = useQuery(api.surgeSpots.listApproved);
-  const createSpot = useMutation(api.surgeSpots.create);
+  const spots = useAsyncQuery(spotsApi.listApproved, {});
+  const createSpot = spotsApi.create;
 
   const loading = spots === undefined;
   const filtered = (spots ?? []).filter(s => filter === 'all' || s.category === filter);
 
   if (selectedSpotId) {
-    const spot = (spots ?? []).find(s => s._id === selectedSpotId);
+    const spot = (spots ?? []).find(s => s.id === selectedSpotId);
     if (spot) {
       return <SpotDetail spot={spot} onBack={() => setSelectedSpotId(null)} />;
     }
@@ -87,7 +87,7 @@ export function SpotsPage() {
             const meta = CATEGORY_META[spot.category as SpotCategory] || CATEGORY_META.other;
             const Icon = meta.icon;
             return (
-              <button key={spot._id} onClick={() => setSelectedSpotId(spot._id)} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-white/5 transition-colors text-left">
+              <button key={spot.id} onClick={() => setSelectedSpotId(spot.id)} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-white/5 transition-colors text-left">
                 <div className={`w-10 h-10 rounded-xl bg-gray-900 flex items-center justify-center flex-shrink-0`}>
                   <Icon size={20} className={meta.color} />
                 </div>
@@ -117,7 +117,6 @@ export function SpotsPage() {
                 address: data.address,
                 lat: data.lat,
                 lng: data.lng,
-                submitted_by: profile?.id || '',
               });
               toast.success('Spot submitted!');
               setShowCreate(false);
@@ -133,10 +132,11 @@ function SpotDetail({ spot, onBack }: { spot: any; onBack: () => void }) {
   const { profile } = useAuth();
   const [msgText, setMsgText] = useState('');
 
-  const events = useQuery(api.surgeSpots.getEvents, { spot_id: spot._id });
-  const messages = useQuery(api.surgeSpots.getSpotMessages, { spot_id: spot._id });
-  const sendMsg = useMutation(api.surgeSpots.sendSpotMessage);
-  const rsvp = useMutation(api.surgeSpots.rsvp);
+  const [refreshToken, setRefreshToken] = useState(0);
+  const events = useAsyncQuery(spotsApi.getEvents, { spot_id: spot.id });
+  const messages = useAsyncQueryWithRefresh(spotsApi.getSpotMessages, { spot_id: spot.id }, refreshToken);
+  const sendMsg = spotsApi.sendSpotMessage;
+  const rsvp = spotsApi.rsvp;
 
   const meta = CATEGORY_META[spot.category as SpotCategory] || CATEGORY_META.other;
   const Icon = meta.icon;
@@ -145,7 +145,8 @@ function SpotDetail({ spot, onBack }: { spot: any; onBack: () => void }) {
     const t = msgText.trim();
     if (!t || !profile?.id) return;
     setMsgText('');
-    await sendMsg({ spot_id: spot._id, user_id: profile.id, text: t });
+    await sendMsg({ spot_id: spot.id, text: t });
+    setRefreshToken((t2) => t2 + 1);
   };
 
   return (
@@ -171,13 +172,13 @@ function SpotDetail({ spot, onBack }: { spot: any; onBack: () => void }) {
             <h3 className="text-white font-bold text-sm mb-2 flex items-center gap-2"><Calendar size={14} /> Events</h3>
             <div className="space-y-2">
               {events.map((ev: any) => (
-                <div key={ev._id} className="bg-gray-900 rounded-2xl p-3 border border-white/5">
+                <div key={ev.id} className="bg-gray-900 rounded-2xl p-3 border border-white/5">
                   <p className="text-white font-semibold text-sm">{EVENT_LABELS[ev.event_type as EventType] || ev.event_type} — {ev.title}</p>
                   <p className="text-gray-500 text-xs mt-1">{new Date(ev.starts_at).toLocaleString()}</p>
                   {ev.description && <p className="text-gray-400 text-xs mt-1">{ev.description}</p>}
                   <div className="flex items-center gap-2 mt-2">
                     <span className="text-gray-500 text-xs"><Users size={12} className="inline" /> {ev.attendee_count || 0}{ev.max_attendees ? `/${ev.max_attendees}` : ''}</span>
-                    <button onClick={() => profile?.id && rsvp({ event_id: ev._id, user_id: profile.id })} className="text-xs bg-purple-700 text-white px-2 py-1 rounded-lg font-semibold">
+                    <button onClick={() => profile?.id && rsvp({ event_id: ev.id })} className="text-xs bg-purple-700 text-white px-2 py-1 rounded-lg font-semibold">
                       RSVP
                     </button>
                   </div>
@@ -192,7 +193,7 @@ function SpotDetail({ spot, onBack }: { spot: any; onBack: () => void }) {
           <h3 className="text-white font-bold text-sm mb-2 flex items-center gap-2"><MessageCircle size={14} /> Chat</h3>
           <div className="space-y-2 max-h-60 overflow-y-auto">
             {(messages ?? []).map((msg: any) => (
-              <div key={msg._id} className="flex gap-2">
+              <div key={msg.id} className="flex gap-2">
                 <div className="w-6 h-6 rounded-full bg-gray-800 flex-shrink-0" />
                 <div>
                   <p className="text-white text-xs font-semibold">{msg.user_id.slice(0, 8)}</p>

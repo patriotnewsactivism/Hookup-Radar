@@ -1,8 +1,8 @@
-import { useAuthActions } from "@convex-dev/auth/react";
-import { useMutation, useQuery } from "convex/react";
 import { ChevronRight, Loader2, Moon, Palette, Sun, User } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabaseClient";
+import { account } from "@/lib/surgeApi";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,14 +18,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/contexts/ThemeContext";
-import { api } from "../../convex/_generated/api";
 
 export function SettingsPage() {
-  const user = useQuery(api.auth.currentUser);
+  const { authUser, profile, signOut } = useAuth();
+  const user = { name: profile?.display_name || profile?.username, email: authUser?.email };
   const { theme, toggleTheme, switchable } = useTheme();
-  const { signIn, signOut } = useAuthActions();
-  const deleteAccount = useMutation(api.users.deleteAccount);
-  const navigate = useNavigate();
+  const deleteAccount = account.deleteAccount;
 
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
@@ -40,13 +38,9 @@ export function SettingsPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
-
-    const formData = new FormData();
-    formData.append("email", user?.email || "");
-    formData.append("flow", "reset");
-
     try {
-      await signIn("password", formData);
+      const { error: err } = await supabase.auth.resetPasswordForEmail(user?.email || "");
+      if (err) throw err;
       setPasswordStep("verify");
     } catch {
       setError("Could not send reset code. Please try again.");
@@ -59,13 +53,11 @@ export function SettingsPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     const formData = new FormData(e.currentTarget);
-    formData.append("email", user?.email || "");
-    formData.append("flow", "reset-verification");
-
+    const newPassword = String(formData.get("newPassword") || "");
     try {
-      await signIn("password", formData);
+      const { error: err } = await supabase.auth.updateUser({ password: newPassword });
+      if (err) throw err;
       setSuccess("Password changed successfully!");
       setTimeout(() => {
         setChangePasswordOpen(false);
@@ -82,11 +74,10 @@ export function SettingsPage() {
   const handleDeleteAccount = async () => {
     setLoading(true);
     setError("");
-
     try {
       await deleteAccount();
-      await signOut();
-      navigate("/");
+      // deleteAccount() already signs the (now profile-less) session out —
+      // App.tsx will fall back to LandingPage automatically once authUser clears.
     } catch {
       setError("Could not delete account. Please try again.");
       setLoading(false);

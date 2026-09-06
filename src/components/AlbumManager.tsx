@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { media } from "../lib/surgeApi";
+import { useAsyncQuery, useAsyncQueryWithRefresh } from "../lib/useSupabaseQuery";
 import { Plus, Trash2, Lock, Unlock, Image, Film, X, ChevronLeft } from "lucide-react";
 import { PhotoUpload } from "./PhotoUpload";
 import { toast } from "sonner";
@@ -10,28 +10,29 @@ interface Props {
 }
 
 export function AlbumManager({ userId }: Props) {
-  const albums = useQuery(api.surgeMedia.getAlbums, { user_id: userId });
-  const createAlbum = useMutation(api.surgeMedia.createAlbum);
-  const deleteAlbum = useMutation(api.surgeMedia.deleteAlbum);
+  const [refreshToken, setRefreshToken] = useState(0);
+  const albums = useAsyncQueryWithRefresh(media.getAlbums, { user_id: userId }, refreshToken);
+  const createAlbum = media.createAlbum;
+  const deleteAlbum = media.deleteAlbum;
 
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
   const [newPrivate, setNewPrivate] = useState(false);
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
 
-  const selectedAlbum = albums?.find((a) => a._id === selectedAlbumId);
+  const selectedAlbum = albums?.find((a) => a.id === selectedAlbumId);
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
     try {
       await createAlbum({
-        user_id: userId,
         name: newName.trim(),
         is_private: newPrivate,
       });
       setNewName("");
       setNewPrivate(false);
       setShowCreate(false);
+      setRefreshToken((t) => t + 1);
       toast.success("Album created!");
     } catch {
       toast.error("Failed to create album");
@@ -41,8 +42,9 @@ export function AlbumManager({ userId }: Props) {
   const handleDelete = async (albumId: string) => {
     if (!confirm("Delete this album and all its photos/videos?")) return;
     try {
-      await deleteAlbum({ album_id: albumId as any });
+      await deleteAlbum({ album_id: albumId });
       setSelectedAlbumId(null);
+      setRefreshToken((t) => t + 1);
       toast.success("Album deleted");
     } catch {
       toast.error("Failed to delete album");
@@ -68,14 +70,14 @@ export function AlbumManager({ userId }: Props) {
             </p>
           </div>
           <button
-            onClick={() => handleDelete(selectedAlbum._id)}
+            onClick={() => handleDelete(selectedAlbum.id)}
             className="w-8 h-8 bg-red-900/30 rounded-lg flex items-center justify-center hover:bg-red-900/50 text-red-400"
           >
             <Trash2 size={14} />
           </button>
         </div>
 
-        <AlbumMediaGrid albumId={selectedAlbum._id} userId={userId} />
+        <AlbumMediaGrid albumId={selectedAlbum.id} userId={userId} />
       </div>
     );
   }
@@ -148,8 +150,8 @@ export function AlbumManager({ userId }: Props) {
         <div className="grid grid-cols-2 gap-3">
           {albums.map((album) => (
             <button
-              key={album._id}
-              onClick={() => setSelectedAlbumId(album._id)}
+              key={album.id}
+              onClick={() => setSelectedAlbumId(album.id)}
               className="bg-white/5 border border-white/10 rounded-xl overflow-hidden text-left hover:bg-white/10 transition-all group"
             >
               {/* Cover */}
@@ -192,11 +194,12 @@ export function AlbumManager({ userId }: Props) {
 
 // Sub-component for album media grid with upload
 function AlbumMediaGrid({ albumId, userId }: { albumId: string; userId: string }) {
-  const media = useQuery(api.surgeMedia.getByAlbum, { album_id: albumId as any });
-  const deleteMedia = useMutation(api.surgeMedia.deleteMedia);
+  const [mediaRefreshToken, setMediaRefreshToken] = useState(0);
+  const mediaItems = useAsyncQueryWithRefresh(media.getByAlbum, { album_id: albumId }, mediaRefreshToken);
+  const deleteMedia = media.deleteMedia;
   const [viewMedia, setViewMedia] = useState<{ url: string; type: string } | null>(null);
 
-  const photoCount = media?.filter((m) => m.type === "image").length ?? 0;
+  const photoCount = mediaItems?.filter((m) => m.type === "image").length ?? 0;
   const canAddMore = photoCount < 15;
 
   return (
@@ -207,7 +210,7 @@ function AlbumMediaGrid({ albumId, userId }: { albumId: string; userId: string }
           userId={userId}
           maxPhotos={15}
           albumId={albumId}
-          existingUrls={media?.filter((m) => m.type === "image").map((m) => m.url) ?? []}
+          existingUrls={mediaItems?.filter((m) => m.type === "image").map((m) => m.url) ?? []}
           allowVideo={true}
         />
       )}
@@ -219,11 +222,11 @@ function AlbumMediaGrid({ albumId, userId }: { albumId: string; userId: string }
       )}
 
       {/* Media grid (includes videos) */}
-      {media && media.length > 0 && (
+      {mediaItems && mediaItems.length > 0 && (
         <div className="grid grid-cols-3 gap-1.5">
-          {media.map((m) => (
+          {mediaItems.map((m) => (
             <div
-              key={m._id}
+              key={m.id}
               className="relative aspect-square rounded-lg overflow-hidden group cursor-pointer"
               onClick={() => setViewMedia({ url: m.url, type: m.type })}
             >
@@ -237,9 +240,10 @@ function AlbumMediaGrid({ albumId, userId }: { albumId: string; userId: string }
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  deleteMedia({ media_id: m._id }).then(() =>
-                    toast.success("Deleted")
-                  );
+                  deleteMedia({ media_id: m.id }).then(() => {
+                    setMediaRefreshToken((t) => t + 1);
+                    toast.success("Deleted");
+                  });
                 }}
                 className="absolute top-1 right-1 w-5 h-5 bg-black/70 rounded-full items-center justify-center hidden group-hover:flex"
               >

@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useMutation } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import { users } from '../lib/surgeApi';
 
 export function useLocation(profileId?: string) {
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const updateLocation = useMutation(api.surgeUsers.updateLocation);
+  const updateLocation = users.updateLocation;
 
   useEffect(() => {
     if (!navigator.geolocation) {

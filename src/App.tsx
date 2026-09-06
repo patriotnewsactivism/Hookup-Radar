@@ -1,8 +1,6 @@
-// v2.1 — navy/midnight theme + TS fixes
+// v3.0 — migrated off Convex to Supabase
 import React, { useState } from 'react';
 import { Toaster } from 'sonner';
-import { ConvexAuthProvider } from '@convex-dev/auth/react';
-import { ConvexReactClient } from 'convex/react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LandingPage } from './pages/LandingPage';
 import { OnboardingPage } from './pages/OnboardingPage';
@@ -13,8 +11,6 @@ import { ProfilePage } from './pages/ProfilePage';
 import { SpotsPage } from './pages/SpotsPage';
 import { BottomNav } from './components/BottomNav';
 import { AppView } from './types';
-
-const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 
 function AppInner() {
   const { authUser, profile, loading } = useAuth();
@@ -61,7 +57,7 @@ function AppInner() {
   );
 }
 
-function AppWithAuth() {
+export default function App() {
   return (
     <AuthProvider>
       <AppInner />
@@ -76,13 +72,5 @@ function AppWithAuth() {
         }}
       />
     </AuthProvider>
-  );
-}
-
-export default function App() {
-  return (
-    <ConvexAuthProvider client={convex}>
-      <AppWithAuth />
-    </ConvexAuthProvider>
   );
 }
