@@ -770,6 +770,18 @@ export const media = {
     if (error) throw error;
   },
 
+  async deleteMediaByUrl(url: string) {
+    const me = await requireMyProfile();
+    const { data, error } = await supabase
+      .from('surge_media')
+      .select('id')
+      .eq('user_id', me.id)
+      .eq('url', url)
+      .maybeSingle();
+    if (error) throw error;
+    if (data?.id) await media.deleteMedia({ media_id: data.id });
+  },
+
   async sendMediaMessage(args: { conversation_id: string; receiver_id: string; url: string; media_type: string }) {
     const me = await requireMyProfile();
     if (args.receiver_id === me.id) throw new Error('Invalid receiver');
