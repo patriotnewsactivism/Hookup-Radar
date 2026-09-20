@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
+import { supabase } from '../lib/supabaseClient';
 
 // ── Types ─────────────────────────────────────────────────────
 type Mode = 'landing' | 'signin' | 'signup';
@@ -382,6 +383,8 @@ function AuthForm({ mode, onModeChange }: { mode: 'signin' | 'signup'; onModeCha
   const [loading, setLoading]   = useState(false);
   const [showRef, setShowRef]   = useState(false);
   const [refCode, setRefCode]   = useState('');
+  const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
+  const [resending, setResending] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -393,8 +396,13 @@ function AuthForm({ mode, onModeChange }: { mode: 'signin' | 'signup'; onModeCha
         toast.success('Welcome back ⚡');
       } else {
         if (password.length < 6) { toast.error('Password must be 6+ chars'); setLoading(false); return; }
-        await signUp(email, password);
-        toast.success('Account created! ⚡');
+        const { requiresEmailConfirmation } = await signUp(email, password);
+        if (requiresEmailConfirmation) {
+          setConfirmationEmail(email);
+          toast.success('Check your email to confirm your account.');
+        } else {
+          toast.success('Account created! ⚡');
+        }
       }
     } catch (e: any) {
       toast.error(e.message || 'Something went wrong');
@@ -402,6 +410,57 @@ function AuthForm({ mode, onModeChange }: { mode: 'signin' | 'signup'; onModeCha
       setLoading(false);
     }
   };
+
+  const resendConfirmation = async () => {
+    if (!confirmationEmail) return;
+    setResending(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: confirmationEmail,
+        options: { emailRedirectTo: window.location.origin },
+      });
+      if (error) throw error;
+      toast.success('A new confirmation email is on its way.');
+    } catch (e: any) {
+      toast.error(e.message || 'Could not resend the confirmation email');
+    } finally {
+      setResending(false);
+    }
+  };
+
+  if (confirmationEmail) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-sm mx-auto"
+      >
+        <div className="bg-gray-950/80 backdrop-blur border border-white/10 rounded-3xl p-6 text-center space-y-4 shadow-2xl">
+          <div className="w-12 h-12 mx-auto rounded-2xl bg-[var(--accent)]/15 border border-[var(--border-strong)] flex items-center justify-center text-2xl">✉️</div>
+          <div>
+            <h2 className="text-white text-2xl font-black">Check your email</h2>
+            <p className="text-gray-400 text-sm mt-2 leading-relaxed">
+              We sent a confirmation link to <span className="text-white font-medium break-all">{confirmationEmail}</span>. Open it to finish creating your Surge account.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={resendConfirmation}
+            disabled={resending}
+            className="w-full bg-[var(--accent)] text-[#050c1a] font-bold py-3.5 rounded-2xl hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            {resending ? 'Sending…' : 'Resend confirmation email'}
+          </button>
+          <button
+            type="button"
+            onClick={() => onModeChange('signin')}
+            className="text-gray-500 text-sm hover:text-white transition-colors"
+          >
+            Already confirmed? Sign in
+          </button>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -839,153 +898,3 @@ export function LandingPage() {
               Everything stacks. <span className="text-gray-400">Invite 10 friends, verify your email, finish your profile, and keep a 7-day streak — that's over a month of free Premium without spending a cent.</span>
             </p>
             <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={() => setMode('signup')}
-              className="mt-5 inline-flex items-center gap-2 bg-[var(--accent)] text-[#050c1a] font-bold px-8 py-3.5 rounded-2xl text-sm hover:opacity-90 transition-opacity active:scale-95"
-            >
-              <Gift size={16} /> Start earning — Get Started Free
-            </motion.button>
-          </div>
-        </FadeIn>
-      </section>
-
-      {/* ── STATS BAND ────────────────────────────────────── */}
-      <section className="px-4 py-14 border-y border-white/5" style={{ background: 'rgba(212,168,67,0.03)' }}>
-        <div className="max-w-5xl mx-auto">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
-            {STATS.map((s, i) => (
-              <FadeIn key={s.label} delay={i * 0.05}>
-                <div className="text-center">
-                  <div className="text-2xl mb-1">{s.icon}</div>
-                  <div className="text-white font-black text-xl">{s.value}</div>
-                  <div className="text-gray-600 text-[11px] mt-0.5">{s.label}</div>
-                </div>
-              </FadeIn>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── TESTIMONIALS ───────────────────────────────────── */}
-      <section className="px-4 py-16 max-w-5xl mx-auto">
-        <FadeIn>
-          <div className="text-center mb-10">
-            <span className="text-xs text-cyan-400 font-semibold uppercase tracking-widest">Word on the street</span>
-            <h2 className="text-white text-3xl font-black mt-2">People are surging</h2>
-          </div>
-        </FadeIn>
-
-        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {TESTIMONIALS.map((t, i) => (
-            <FadeIn key={t.handle} delay={i * 0.06}>
-              <div className="bg-gray-900/60 border border-white/8 rounded-2xl px-4 py-4 h-full">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-base">
-                    {t.emoji}
-                  </div>
-                  <p className="text-gray-600 text-xs">{t.handle}</p>
-                </div>
-                <p className="text-white text-sm leading-relaxed">"{t.text}"</p>
-              </div>
-            </FadeIn>
-          ))}
-        </div>
-      </section>
-
-      {/* ── FAQ ────────────────────────────────────────────── */}
-      <section id="faq" className="px-4 py-16 max-w-3xl mx-auto">
-        <FadeIn>
-          <div className="text-center mb-10">
-            <span className="text-xs text-gray-400 font-semibold uppercase tracking-widest">Questions, answered</span>
-            <h2 className="text-white text-3xl font-black mt-2">Everything you're wondering</h2>
-          </div>
-        </FadeIn>
-
-        <div className="space-y-3">
-          {FAQS.map((faq, i) => (
-            <FadeIn key={faq.q} delay={i * 0.04}>
-              <div className="bg-gray-900/50 border border-white/8 rounded-2xl overflow-hidden">
-                <button
-                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left"
-                >
-                  <span className="text-white font-semibold text-sm flex items-center gap-2">
-                    <HelpCircle size={15} className="text-[var(--accent)] flex-shrink-0" /> {faq.q}
-                  </span>
-                  <ChevronDown size={16} className={`text-gray-500 flex-shrink-0 transition-transform ${openFaq === i ? 'rotate-180' : ''}`} />
-                </button>
-                <AnimatePresence>
-                  {openFaq === i && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="overflow-hidden"
-                    >
-                      <p className="px-5 pb-4 text-gray-400 text-sm leading-relaxed">{faq.a}</p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </FadeIn>
-          ))}
-        </div>
-      </section>
-
-      {/* ── BOTTOM CTA ─────────────────────────────────────── */}
-      <section className="px-4 py-16 max-w-4xl mx-auto">
-        <FadeIn>
-          <div className="relative bg-[var(--bg-elevated)] border border-[var(--border-strong)] rounded-3xl p-8 md:p-12 text-center overflow-hidden">
-            {/* Glow */}
-            <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(135deg, rgba(212,168,67,0.12), rgba(5,12,26,0.4))' }} />
-
-            <div className="relative z-10">
-              <div className="text-5xl mb-4">⚡</div>
-              <h2 className="text-white text-3xl font-black mb-2">Ready to surge?</h2>
-              <p className="text-gray-400 text-sm mb-8 max-w-sm mx-auto">Free forever. No credit card. Just show up — and stack free Premium while you're at it.</p>
-
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                <motion.button
-                  whileTap={{ scale: 0.97 }}
-                  onClick={() => setMode('signup')}
-                  className="w-full sm:w-auto bg-[var(--accent)] text-[#050c1a] font-bold px-10 py-4 rounded-2xl text-base hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-lg"
-                >
-                  <Zap size={18} /> Get Started Free
-                </motion.button>
-                <button onClick={() => setMode('signin')}
-                  className="w-full sm:w-auto bg-gray-900 border border-white/10 text-white font-semibold px-10 py-4 rounded-2xl hover:border-[var(--border-strong)] transition-colors">
-                  Sign In
-                </button>
-              </div>
-            </div>
-          </div>
-        </FadeIn>
-      </section>
-
-      {/* ── FOOTER ─────────────────────────────────────────── */}
-      <footer className="border-t border-white/5 px-4 py-10">
-        <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-brand-gradient flex items-center justify-center">
-              <Zap className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-white font-black tracking-tight text-lg">SURGE</span>
-          </div>
-          <nav className="flex flex-wrap items-center justify-center gap-6 text-gray-500 text-sm">
-            <a href="#features" className="hover:text-white transition-colors">Features</a>
-            <a href="#premium" className="hover:text-white transition-colors">Premium</a>
-            <a href="#how" className="hover:text-white transition-colors">How it works</a>
-            <a href="#rewards" className="hover:text-white transition-colors">Rewards</a>
-            <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
-          </nav>
-          <div className="flex items-center justify-center gap-4 text-gray-700 text-xs">
-            <span>Privacy</span><span>Terms</span><span>Safety</span>
-          </div>
-        </div>
-        <p className="text-center text-gray-700 text-xs mt-6">© 2025 Surge · 18+ Only · All rights reserved</p>
-      </footer>
-
-    </div>
-  );
-}

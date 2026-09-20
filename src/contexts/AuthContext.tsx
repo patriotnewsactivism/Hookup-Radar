@@ -7,7 +7,7 @@ interface AuthContextType {
   authUser: { id: string; email: string; emailConfirmed?: boolean } | null;
   profile: SurgeUser | null;
   loading: boolean;
-  signUp: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string) => Promise<{ requiresEmailConfirmation: boolean }>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (data: Partial<SurgeUser>) => Promise<void>;
@@ -126,8 +126,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadProfile]);
 
   const signUp = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: window.location.origin },
+    });
     if (error) throw error;
+    return { requiresEmailConfirmation: !data.session };
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
