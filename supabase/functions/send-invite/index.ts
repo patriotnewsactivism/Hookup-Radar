@@ -6,7 +6,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 import { Resend } from "https://esm.sh/resend@4.7.0";
 
-const APP_URL = "https://surgeonline-wtpnews.netlify.app";
+const APP_URL = "https://surgeonline.site";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
