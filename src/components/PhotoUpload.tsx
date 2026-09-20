@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { Camera, X, Plus, Loader2, Image, Film } from "lucide-react";
 import { useMediaUpload } from "../hooks/useMediaUpload";
+import { media as mediaApi } from "../lib/surgeApi";
 import { toast } from "sonner";
 
 interface Props {
@@ -61,6 +62,18 @@ export function PhotoUpload({
 
     // Reset input
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeUrl = async (url: string, index: number) => {
+    try {
+      await mediaApi.deleteMediaByUrl(url);
+      const updated = urls.filter((_, j) => j !== index);
+      setUrls(updated);
+      onUploadComplete?.(updated);
+      toast.success("Media removed");
+    } catch (err: any) {
+      toast.error(err.message || "Could not remove media");
+    }
   };
 
   const acceptTypes = allowVideo ? "image/*,video/*" : "image/*";
@@ -139,11 +152,7 @@ export function PhotoUpload({
               <img src={url} alt="" className="w-full h-full object-cover" />
             )}
             <button
-              onClick={() => {
-                const updated = urls.filter((_, j) => j !== i);
-                setUrls(updated);
-                onUploadComplete?.(updated);
-              }}
+              onClick={() => void removeUrl(url, i)}
               className="absolute top-1 right-1 w-6 h-6 bg-black/70 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
             >
               <X size={12} className="text-white" />
