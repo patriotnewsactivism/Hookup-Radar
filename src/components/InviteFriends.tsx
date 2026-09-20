@@ -146,7 +146,25 @@ export function InviteFriends() {
       void loadStats();
       void refreshProfile();
     } catch (e: any) {
-      toast.error(e.message || "Invite send failed");
+      const errorMessage = String(e?.message || "Invite send failed");
+      if (/server not configured for email|email send failed/i.test(errorMessage)) {
+        const { url } = referrals.buildShare({ code });
+        const subject = encodeURIComponent("You're invited to SURGE ⚡");
+        const body = encodeURIComponent(
+          `${message.trim() || SHARE_DEFAULT_TEXT}\n\n${url}`,
+        );
+        window.location.href = `mailto:${encodeURIComponent(trimmed)}?subject=${subject}&body=${body}`;
+        try {
+          const res = await referrals.recordInviteSent("mailto");
+          afterInvite(res?.days ?? 0);
+        } catch {
+          toast.success("Opening your email app");
+        }
+        setEmail("");
+        setMessage("");
+      } else {
+        toast.error(errorMessage);
+      }
     } finally {
       setBusy(false);
     }
